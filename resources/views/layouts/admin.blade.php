@@ -20,7 +20,7 @@
         .wrapper { display: flex; min-height: 100vh; }
 
         .sidebar {
-            width: 250px; min-height: 100vh; background: #1a1a2e; color: #fff;
+            width: 250px; min-height: 100vh; background: #f0fdf4; color: #374151;
             display: flex; flex-direction: column; position: fixed; top: 0; left: 0; z-index: 1000;
             transition: width 0.25s ease;
         }
@@ -29,26 +29,26 @@
         .sidebar.collapsed .nav-link span,
         .sidebar.collapsed .nav-divider span { display: none; }
         .sidebar.collapsed .nav-divider { text-align: center; font-size: 0; }
-        .sidebar.collapsed .nav-divider::after { content: '—'; color: rgba(255,255,255,0.3); font-size: 0.75rem; }
+        .sidebar.collapsed .nav-divider::after { content: '—'; color: rgba(0,0,0,0.2); font-size: 0.75rem; }
         .sidebar.collapsed .nav-link { justify-content: center; padding: 0.75rem 0; }
         .sidebar.collapsed .nav-link i { margin: 0; font-size: 1.2rem; }
 
-        .sidebar-header { padding: 1rem 1.25rem; border-bottom: 1px solid rgba(255,255,255,0.08); flex-shrink: 0; }
-        .sidebar-brand { color: #fff; text-decoration: none; font-size: 1.15rem; font-weight: 700; display: flex; align-items: center; gap: 0.5rem; white-space: nowrap; }
-        .sidebar-brand:hover { color: #e0e0e0; }
+        .sidebar-header { padding: 1rem 1.25rem; border-bottom: 1px solid rgba(0,0,0,0.08); flex-shrink: 0; }
+        .sidebar-brand { color: #166534; text-decoration: none; font-size: 1.15rem; font-weight: 700; display: flex; align-items: center; gap: 0.5rem; white-space: nowrap; }
+        .sidebar-brand:hover { color: #14532d; }
 
         .sidebar-nav { padding: 0.5rem 0; flex: 1; overflow-y: auto; list-style: none; }
         .sidebar-nav .nav-item { list-style: none; }
         .sidebar-nav .nav-link {
-            color: rgba(255,255,255,0.65); padding: 0.7rem 1.25rem; display: flex; align-items: center; gap: 0.75rem;
+            color: #4b5563; padding: 0.7rem 1.25rem; display: flex; align-items: center; gap: 0.75rem;
             text-decoration: none; white-space: nowrap; transition: all 0.15s; border-left: 3px solid transparent; font-size: 0.9rem;
         }
         .sidebar-nav .nav-link i { width: 20px; text-align: center; font-size: 1rem; flex-shrink: 0; }
-        .sidebar-nav .nav-link:hover { color: #fff; background: rgba(255,255,255,0.06); }
-        .sidebar-nav .nav-link.active { color: #fff; background: rgba(67, 97, 238, 0.2); border-left-color: #4361ee; }
+        .sidebar-nav .nav-link:hover { color: #166534; background: rgba(22, 101, 52, 0.08); }
+        .sidebar-nav .nav-link.active { color: #166534; background: rgba(22, 101, 52, 0.12); border-left-color: #16a34a; }
 
         .nav-divider { padding: 0.75rem 1.25rem 0.25rem; list-style: none; }
-        .nav-divider span { font-size: 0.65rem; text-transform: uppercase; letter-spacing: 1.2px; color: rgba(255,255,255,0.35); font-weight: 600; }
+        .nav-divider span { font-size: 0.65rem; text-transform: uppercase; letter-spacing: 1.2px; color: rgba(0,0,0,0.35); font-weight: 600; }
 
         .main-content { margin-left: 250px; flex: 1; display: flex; flex-direction: column; min-height: 100vh; transition: margin-left 0.25s ease; }
         .main-content.expanded { margin-left: 65px; }
@@ -59,13 +59,13 @@
 
         .content { flex: 1; padding: 1.5rem; }
 
-        .avatar-initial { width: 32px; height: 32px; background: #4361ee; color: #fff; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 0.85rem; font-weight: 600; flex-shrink: 0; }
+        .avatar-initial { width: 32px; height: 32px; background: #16a34a; color: #fff; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 0.85rem; font-weight: 600; flex-shrink: 0; }
 
         @media (max-width: 992px) {
             .sidebar { width: 65px; }
             .sidebar .sidebar-brand span, .sidebar .nav-link span, .sidebar .nav-divider span { display: none; }
             .sidebar .nav-divider { text-align: center; font-size: 0; }
-            .sidebar .nav-divider::after { content: '—'; color: rgba(255,255,255,0.3); font-size: 0.75rem; }
+            .sidebar .nav-divider::after { content: '—'; color: rgba(0,0,0,0.2); font-size: 0.75rem; }
             .sidebar .nav-link { justify-content: center; padding: 0.75rem 0; }
             .sidebar .nav-link i { margin: 0; font-size: 1.2rem; }
             .main-content { margin-left: 65px; }
