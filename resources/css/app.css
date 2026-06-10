@@ -394,21 +394,22 @@
 
 /* ===== Responsive ===== */
 @media (max-width: 991.98px) {
-    .pos-right {
-        width: 100%;
-        flex: none;
-        max-height: 45vh;
-        border-left: none;
-        border-top: 1px solid #dee2e6;
-    }
-    .pos-left {
-        flex: none;
-        height: auto;
-    }
     .pos-container {
         flex-direction: column;
         height: 100vh;
         overflow: hidden;
+    }
+    .pos-left {
+        flex: 1;
+        min-height: 0;
+        display: flex;
+        flex-direction: column;
+    }
+    .pos-right {
+        flex: none;
+        height: 45vh;
+        border-left: none;
+        border-top: 1px solid #dee2e6;
     }
 }
 
@@ -419,6 +420,6 @@
         padding: 0.35rem;
     }
     .pos-right {
-        max-height: 40vh;
+        height: 40vh;
     }
 }
