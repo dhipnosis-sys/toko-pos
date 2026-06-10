@@ -22,7 +22,7 @@
         .sidebar {
             width: 250px; min-height: 100vh; background: #f0fdf4; color: #374151;
             display: flex; flex-direction: column; position: fixed; top: 0; left: 0; z-index: 1000;
-            transition: width 0.25s ease;
+            transition: transform 0.3s ease, width 0.25s ease;
         }
         .sidebar.collapsed { width: 65px; }
         .sidebar.collapsed .sidebar-brand span,
@@ -50,10 +50,16 @@
         .nav-divider { padding: 0.75rem 1.25rem 0.25rem; list-style: none; }
         .nav-divider span { font-size: 0.65rem; text-transform: uppercase; letter-spacing: 1.2px; color: rgba(0,0,0,0.35); font-weight: 600; }
 
+        .sidebar-backdrop {
+            display: none; position: fixed; inset: 0; z-index: 999;
+            background: rgba(0,0,0,0.4);
+        }
+        .sidebar-backdrop.show { display: block; }
+
         .main-content { margin-left: 250px; flex: 1; display: flex; flex-direction: column; min-height: 100vh; transition: margin-left 0.25s ease; }
         .main-content.expanded { margin-left: 65px; }
 
-        .topbar { background: #fff; border-bottom: 1px solid #e9ecef; padding: 0.6rem 1.5rem; position: sticky; top: 0; z-index: 999; flex-shrink: 0; }
+        .topbar { background: #fff; border-bottom: 1px solid #e9ecef; padding: 0.6rem 1rem; position: sticky; top: 0; z-index: 998; flex-shrink: 0; }
         .sidebar-toggle { color: #6c757d; font-size: 1.2rem; padding: 0; text-decoration: none; border: none; background: none; cursor: pointer; }
         .sidebar-toggle:hover { color: #343a40; }
 
@@ -61,14 +67,40 @@
 
         .avatar-initial { width: 32px; height: 32px; background: #16a34a; color: #fff; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 0.85rem; font-weight: 600; flex-shrink: 0; }
 
-        @media (max-width: 992px) {
-            .sidebar { width: 65px; }
-            .sidebar .sidebar-brand span, .sidebar .nav-link span, .sidebar .nav-divider span { display: none; }
-            .sidebar .nav-divider { text-align: center; font-size: 0; }
-            .sidebar .nav-divider::after { content: '—'; color: rgba(0,0,0,0.2); font-size: 0.75rem; }
-            .sidebar .nav-link { justify-content: center; padding: 0.75rem 0; }
-            .sidebar .nav-link i { margin: 0; font-size: 1.2rem; }
-            .main-content { margin-left: 65px; }
+        @media (max-width: 991.98px) {
+            .sidebar { width: 250px; transform: translateX(-100%); }
+            .sidebar.mobile-open { transform: translateX(0); }
+            .sidebar.collapsed { width: 250px; }
+            .sidebar.collapsed .sidebar-brand span,
+            .sidebar.collapsed .nav-link span,
+            .sidebar.collapsed .nav-divider span { display: inline; }
+            .sidebar.collapsed .nav-link { justify-content: flex-start; padding: 0.7rem 1.25rem; }
+            .sidebar.collapsed .nav-link i { margin: 0; }
+            .sidebar.collapsed .nav-divider { text-align: left; font-size: inherit; }
+            .sidebar.collapsed .nav-divider::after { content: none; }
+            .main-content { margin-left: 0; }
+            .main-content.expanded { margin-left: 0; }
+            .content { padding: 1rem; }
+            .topbar { padding: 0.5rem 0.75rem; }
+            .table th, .table td { white-space: nowrap; }
+            .card-body { padding: 1rem; }
+            .dashboard-card .card-body { padding: 0.75rem; }
+        }
+
+        @media (max-width: 575.98px) {
+            .content { padding: 0.75rem; }
+            .topbar { padding: 0.4rem 0.5rem; }
+            .sidebar-toggle { font-size: 1.1rem; }
+            h4.fw-bold { font-size: 1.1rem; }
+            .dashboard-card h3 { font-size: 1.25rem; }
+            .dashboard-card .icon-shape { padding: 0.5rem !important; }
+            .dashboard-card .icon-shape i { font-size: 0.9rem; }
+            .table { font-size: 0.8rem; }
+            .table th, .table td { padding: 0.4rem 0.35rem !important; }
+            .btn-sm { font-size: 0.75rem; padding: 0.25rem 0.4rem; }
+            .badge { font-size: 0.65rem; }
+            .card-body { padding: 0.75rem; }
+            .form-control, .form-select { font-size: 0.85rem; }
         }
     </style>
 </head>
@@ -162,11 +194,12 @@
                 @endif
             </ul>
         </nav>
+        <div id="sidebarBackdrop" class="sidebar-backdrop" onclick="closeMobileSidebar()"></div>
 
         <div class="main-content">
             <nav class="topbar">
                 <div class="d-flex align-items-center justify-content-between">
-                    <button id="sidebarToggle" class="sidebar-toggle">
+                    <button id="sidebarToggle" class="sidebar-toggle" onclick="toggleSidebar()">
                         <i class="fas fa-bars"></i>
                     </button>
                     <div class="d-flex align-items-center gap-2">
@@ -209,9 +242,37 @@
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
     <script>
-        document.getElementById('sidebarToggle')?.addEventListener('click', function() {
-            document.getElementById('sidebar').classList.toggle('collapsed');
-            document.querySelector('.main-content').classList.toggle('expanded');
+        function isMobile() { return window.innerWidth < 992; }
+
+        function toggleSidebar() {
+            const sidebar = document.getElementById('sidebar');
+            if (isMobile()) {
+                sidebar.classList.toggle('mobile-open');
+                document.getElementById('sidebarBackdrop').classList.toggle('show');
+            } else {
+                sidebar.classList.toggle('collapsed');
+                document.querySelector('.main-content').classList.toggle('expanded');
+            }
+        }
+
+        function closeMobileSidebar() {
+            if (isMobile()) {
+                document.getElementById('sidebar').classList.remove('mobile-open');
+                document.getElementById('sidebarBackdrop').classList.remove('show');
+            }
+        }
+
+        document.querySelectorAll('.sidebar-nav .nav-link').forEach(link => {
+            link.addEventListener('click', function() {
+                if (isMobile()) closeMobileSidebar();
+            });
+        });
+
+        window.addEventListener('resize', function() {
+            if (!isMobile()) {
+                document.getElementById('sidebar').classList.remove('mobile-open');
+                document.getElementById('sidebarBackdrop').classList.remove('show');
+            }
         });
     </script>
     @stack('scripts')

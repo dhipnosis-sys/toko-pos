@@ -4,13 +4,13 @@
 
 @section('content')
 <div class="container-fluid">
-    <div class="d-flex justify-content-between align-items-center mb-4">
+    <div class="d-flex justify-content-between align-items-center mb-3 mb-md-4">
         <h4 class="mb-0 fw-bold">@lang('app.dashboard')</h4>
-        <span class="text-muted">{{ now()->format('l, d F Y') }}</span>
+        <span class="text-muted small d-none d-sm-inline">{{ now()->format('l, d F Y') }}</span>
     </div>
 
-    <div class="row g-3 mb-4">
-        <div class="col-md-3">
+    <div class="row g-2 g-md-3 mb-4">
+        <div class="col-6 col-md-3">
             <div class="card border-0 shadow-sm dashboard-card">
                 <div class="card-body">
                     <div class="d-flex justify-content-between align-items-start">
@@ -26,7 +26,7 @@
                 </div>
             </div>
         </div>
-        <div class="col-md-3">
+        <div class="col-6 col-md-3">
             <div class="card border-0 shadow-sm dashboard-card">
                 <div class="card-body">
                     <div class="d-flex justify-content-between align-items-start">
@@ -42,7 +42,7 @@
                 </div>
             </div>
         </div>
-        <div class="col-md-3">
+        <div class="col-6 col-md-3">
             <div class="card border-0 shadow-sm dashboard-card">
                 <div class="card-body">
                     <div class="d-flex justify-content-between align-items-start">
@@ -58,7 +58,7 @@
                 </div>
             </div>
         </div>
-        <div class="col-md-3">
+        <div class="col-6 col-md-3">
             <div class="card border-0 shadow-sm dashboard-card">
                 <div class="card-body">
                     <div class="d-flex justify-content-between align-items-start">
@@ -76,7 +76,7 @@
         </div>
     </div>
 
-    <div class="row g-3 mb-4">
+    <div class="row g-2 g-md-3 mb-4">
         <div class="col-md-8">
             <div class="card border-0 shadow-sm">
                 <div class="card-header bg-white border-0 d-flex justify-content-between align-items-center py-3">
