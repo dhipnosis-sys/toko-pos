@@ -54,10 +54,18 @@ GitHub Secrets required (set via repo Settings → Secrets and variables → Act
 - `SERVER_USER`: `topp`
 - `SERVER_PASSWORD`: `nCQQMV.z9!XYQC4`
 
+## Workflow (WAJIB diikuti)
+1. Kerja & test di **local** pada branch `dev`
+2. **Test local dulu** sampai benar-benar OK
+3. User menginstruksikan "commit ke dev" → baru commit
+4. User menginstruksikan "push ke github / production" → baru merge `dev` → `main` & push
+
+**JANGAN langsung commit/push/merge ke production tanpa instruksi eksplisit dari user.**
+
 ## Branch strategy
 - `dev` — development branch (local work)
 - `main` — production branch (server)
-- Work on `dev`, commit, push, then merge `dev` → `main` when ready to deploy
+- Work on `dev`, commit, push, then merge `dev` → `main` when user instructs to deploy
 
 ## Local dev server
 ```powershell
