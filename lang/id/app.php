@@ -285,6 +285,9 @@ return [
     'thank_you' => 'Terima kasih telah berbelanja!',
     'processing' => 'Memproses...',
     'for' => 'untuk',
+    'toggle_photos' => 'Foto',
+    'show_photos' => 'Tampilkan Foto',
+    'hide_photos' => 'Sembunyikan Foto',
 
     // Language
     'language' => 'Bahasa',

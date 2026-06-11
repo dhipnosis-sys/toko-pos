@@ -4,184 +4,380 @@
 
 @push('styles')
 <style>
-/* Override Bootstrap button styles on product cards */
+/* ===== Step Flow ===== */
+.pos-step {
+    flex: 1;
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+}
+.pos-step-hidden {
+    display: none !important;
+}
+.pos-step-header {
+    padding: 0.6rem 1rem;
+    border-bottom: 1px solid #e9ecef;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background: #fff;
+    flex-shrink: 0;
+}
+.btn-step-back {
+    background: none;
+    border: none;
+    color: #059669;
+    font-size: 1.1rem;
+    padding: 0.25rem 0.5rem;
+}
+.btn-step-back:hover {
+    background: #f0fdf4;
+    border-radius: 8px;
+}
+.pos-step-body {
+    flex: 1;
+    overflow-y: auto;
+    padding: 1rem;
+}
+.pos-step-footer {
+    padding: 0.75rem 1rem;
+    border-top: 1px solid #e9ecef;
+    background: #fff;
+    flex-shrink: 0;
+}
+
+/* ===== Product Cards ===== */
 .product-card {
     border: 1px solid #e9ecef;
-    border-radius: 10px;
-    padding: 0;
+    border-radius: 12px;
     background: #fff;
-    cursor: pointer;
-    transition: all 0.2s;
+    transition: all 0.2s ease;
     text-align: center;
     overflow: hidden;
     display: flex;
     flex-direction: column;
-    width: 100%;
-    outline: none;
-    box-shadow: none;
+    position: relative;
+    min-height: 140px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.04);
 }
 .product-card:hover {
-    border-color: #4361ee;
-    box-shadow: 0 2px 12px rgba(67, 97, 238, 0.15);
-    transform: translateY(-2px);
-}
-.product-card:active {
-    transform: scale(0.97);
+    border-color: #059669;
+    box-shadow: 0 4px 16px rgba(5, 150, 105, 0.12);
 }
 .product-card .product-card-img {
-    height: 90px;
+    flex: 1;
     display: flex;
     align-items: center;
     justify-content: center;
-    background: #f8f9fa;
-    font-size: 2rem;
-    flex-shrink: 0;
+    background: #f0fdf4;
+    font-size: 1.8rem;
+    min-height: 60px;
 }
 .product-card .product-card-img img {
     max-width: 100%;
     max-height: 100%;
     object-fit: cover;
 }
-.product-card .product-card-body {
-    padding: 0.5rem;
+.product-card-body {
+    padding: 0.5rem 0.4rem;
     display: flex;
     flex-direction: column;
     gap: 2px;
     flex: 1;
+    justify-content: center;
 }
 .product-card-name {
     font-weight: 600;
-    font-size: 0.8rem;
-    color: #333;
-    line-height: 1.2;
+    font-size: 0.78rem;
+    color: #1a1a2e;
+    line-height: 1.3;
     display: -webkit-box;
     -webkit-line-clamp: 2;
     -webkit-box-orient: vertical;
     overflow: hidden;
 }
-.product-card-sku {
-    font-size: 0.65rem;
-}
 .product-card-price {
+    font-size: 0.82rem;
+    font-weight: 700;
+    color: #059669;
+}
+
+/* ===== Product Add Button ===== */
+.product-card-add {
+    position: absolute;
+    bottom: 4px;
+    right: 4px;
+    width: 26px;
+    height: 26px;
+    border-radius: 50%;
+    border: 2px solid #059669;
+    background: #fff;
+    color: #059669;
+    font-size: 1rem;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.15s;
+    padding: 0;
+    line-height: 1;
+    z-index: 2;
+}
+.product-card-add:hover {
+    background: #059669;
+    color: #fff;
+    transform: scale(1.1);
+}
+.product-card-add.has-qty {
+    width: auto;
+    border-radius: 20px;
+    padding: 0 6px;
+    gap: 4px;
+    background: #059669;
+    color: #fff;
+    border-color: #059669;
+}
+.product-card-add .add-qty {
+    font-size: 0.7rem;
+    font-weight: 600;
+    min-width: 14px;
+    text-align: center;
+}
+.product-card-add .add-icon {
+    font-size: 1rem;
+    font-weight: 700;
+}
+.product-card-add.has-qty .add-icon {
+    font-size: 0.8rem;
+}
+
+/* ===== Photo Toggle ===== */
+.pos-products.hide-photos .product-card-img {
+    display: none;
+}
+.pos-products.hide-photos .product-card-body {
+    padding: 0.6rem 0.4rem;
+}
+.pos-products.hide-photos .product-card-name {
+    font-size: 0.82rem;
+}
+.hide-photos-btn-active {
+    background: #059669 !important;
+    color: #fff !important;
+    border-color: #059669 !important;
+}
+
+/* ===== Floating Cart Bar ===== */
+.cart-float {
+    flex-shrink: 0;
+    padding: 0.6rem 1rem;
+    background: #fff;
+    border-top: 2px solid #059669;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    box-shadow: 0 -2px 10px rgba(0,0,0,0.06);
+}
+.cart-float-info {
     font-size: 0.85rem;
-    color: #4361ee;
+    color: #1a1a2e;
 }
-.product-card-stock {
-    font-size: 0.65rem;
+.cart-float-info strong {
+    color: #059669;
 }
-
-/* Fix pos-products grid */
-.pos-products {
-    flex: 1;
-    overflow-y: auto;
-    padding: 1rem 1.5rem;
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
-    gap: 0.75rem;
-    align-content: start;
+.btn-float-continue {
+    white-space: nowrap;
+    padding: 0.4rem 1rem;
+    font-size: 0.85rem;
+    border-radius: 8px;
+    font-weight: 600;
 }
 
-/* Cart item improvements */
-.cart-item {
+/* ===== Cart Review Items ===== */
+.cart-review-item {
     background: #fff;
     border: 1px solid #e9ecef;
-    border-radius: 8px;
-    padding: 0.75rem;
+    border-radius: 10px;
+    padding: 0.65rem;
     margin-bottom: 0.5rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
 }
-.cart-item:last-child {
+.cart-review-item:last-child {
     margin-bottom: 0;
 }
-
-/* Payment method buttons - ensure proper sizing */
-.payment-method {
-    font-size: 0.72rem;
-    padding: 0.35rem 0.25rem;
+.cart-review-info {
+    flex: 1;
+    min-width: 0;
+}
+.cart-review-name {
+    font-weight: 600;
+    font-size: 0.85rem;
+    color: #1a1a2e;
     white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.cart-review-price {
+    font-size: 0.72rem;
+    color: #6c757d;
+}
+.cart-review-qty {
+    display: flex;
+    align-items: center;
+    gap: 0.3rem;
+    flex-shrink: 0;
+}
+.cart-review-qty .btn {
+    width: 28px;
+    height: 28px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    border-radius: 50%;
+    font-size: 0.8rem;
+}
+.cart-review-qty span {
+    font-weight: 700;
+    font-size: 0.9rem;
+    min-width: 20px;
+    text-align: center;
+    color: #1a1a2e;
+}
+.cart-review-subtotal {
+    font-weight: 600;
+    font-size: 0.82rem;
+    color: #059669;
+    min-width: 60px;
+    text-align: right;
+}
+.cart-review-remove {
+    color: #dc3545;
+    background: none;
+    border: none;
+    padding: 0.25rem;
+    cursor: pointer;
+    font-size: 0.85rem;
+    flex-shrink: 0;
 }
 
-/* Mobile responsive */
+/* ===== Payment ===== */
+.payment-method {
+    font-size: 0.72rem;
+    padding: 0.5rem 0.25rem;
+    white-space: nowrap;
+    border-radius: 8px;
+}
+
+/* ===== Mobile Specific ===== */
 @media (max-width: 991.98px) {
-    .pos-container { flex-direction: column; }
-    .pos-left { width: 100%; flex: 1; min-height: 0; display: flex; flex-direction: column; }
-    .pos-right { width: 100%; flex: none; height: 45vh; border-left: none; border-top: 1px solid #e9ecef; }
-    .pos-products { flex: 1; min-height: 0; grid-template-columns: repeat(auto-fill, minmax(100px, 1fr)); gap: 0.5rem; padding: 0.5rem; }
-    .product-card .product-card-img { height: 60px; font-size: 1.5rem; }
-    .product-card-name { font-size: 0.7rem; }
-    .product-card-price { font-size: 0.75rem; }
-    .product-card-stock { font-size: 0.6rem; }
-    .product-card-sku { display: none; }
-    .pos-header { padding: 0.5rem 0.75rem; flex-shrink: 0; }
-    .pos-header h5 { font-size: 1rem; }
-    .pos-search { padding: 0.5rem 0.75rem; flex-shrink: 0; }
+    .pos-step-header { padding: 0.4rem 0.6rem; }
+    .pos-step-header h6 { font-size: 0.85rem; }
+    .pos-step-body { padding: 0.6rem; }
+    .pos-step-footer { padding: 0.5rem 0.6rem; }
+    .pos-header { padding: 0.35rem 0.6rem; flex-shrink: 0; }
+    .pos-header h5 { font-size: 0.85rem; }
+    .pos-header .btn-sm { font-size: 0.7rem; padding: 0.2rem 0.4rem; }
+    .pos-search { padding: 0.35rem 0.6rem; flex-shrink: 0; }
+    .pos-search .form-control { font-size: 0.8rem; }
+    .pos-search .input-group-text { font-size: 0.8rem; }
+    .pos-search .input-group { margin-top: 0 !important; }
+    .pos-search .input-group.mt-1 { margin-top: 0.25rem !important; }
     .pos-categories { padding: 0.25rem 0.5rem; overflow-x: auto; flex-wrap: nowrap; flex-shrink: 0; }
-    .pos-categories .btn { flex-shrink: 0; font-size: 0.7rem; }
-    .cart-header { padding: 0.5rem 0.75rem; }
-    .cart-items { padding: 0.5rem; }
-    .cart-summary { padding: 0.75rem; }
-    .cart-item { padding: 0.5rem; }
-    .cart-item-actions { flex-wrap: wrap; gap: 0.25rem; }
-    .cart-item-actions .btn { padding: 0.15rem 0.4rem; font-size: 0.75rem; }
-    .cart-item-qty { font-size: 0.8rem; min-width: 20px; }
-    .cart-item-subtotal { font-size: 0.8rem; }
+    .pos-categories .btn { flex-shrink: 0; font-size: 0.65rem; padding: 0.2rem 0.4rem; }
+    .pos-products { flex: 1; min-height: 0; grid-template-columns: repeat(auto-fill, minmax(85px, 1fr)); gap: 0.35rem; padding: 0.4rem; }
+    .product-card .product-card-img { flex: 1; min-height: 30px; font-size: 1rem; }
+    .product-card-body { padding: 0.35rem 0.25rem; gap: 1px; }
+    .product-card-name { font-size: 0.65rem; }
+    .product-card-price { font-size: 0.7rem; }
+    .product-card-sku { display: none; }
+    .product-card-add { width: 22px; height: 22px; font-size: 0.8rem; bottom: 2px; right: 2px; }
+    .pos-products.hide-photos .product-card-body { padding: 0.45rem 0.3rem; }
+    .pos-products.hide-photos .product-card-name { font-size: 0.75rem; }
+    .cart-float { padding: 0.4rem 0.6rem; }
+    .cart-float-info { font-size: 0.75rem; }
+    .btn-float-continue { font-size: 0.78rem; padding: 0.3rem 0.8rem; }
+    .cart-review-item { padding: 0.5rem; gap: 0.4rem; }
+    .cart-review-name { font-size: 0.78rem; }
+    .cart-review-price { font-size: 0.65rem; }
+    .cart-review-qty .btn { width: 24px; height: 24px; font-size: 0.7rem; }
+    .cart-review-qty span { font-size: 0.8rem; min-width: 16px; }
+    .cart-review-subtotal { font-size: 0.75rem; min-width: 50px; }
     #paymentMethods .col { flex: 0 0 auto; width: auto; }
-    .payment-method { font-size: 0.65rem; padding: 0.25rem 0.3rem; }
-    .btn-lg { font-size: 0.9rem; padding: 0.5rem; }
+    .payment-method { font-size: 0.6rem; padding: 0.35rem 0.2rem; }
+    .btn-lg { font-size: 0.85rem; padding: 0.4rem; }
 }
 
 @media (max-width: 575.98px) {
-    .pos-products { grid-template-columns: repeat(3, 1fr); gap: 0.35rem; padding: 0.35rem; }
-    .product-card .product-card-img { height: 50px; }
-    .product-card .product-card-body { padding: 0.25rem; }
-    .product-card-name { font-size: 0.65rem; }
-    .product-card-price { font-size: 0.7rem; }
-    .product-card-stock { display: none; }
-    .pos-right { height: 40vh; }
+    .pos-products { grid-template-columns: repeat(3, 1fr); gap: 0.25rem; padding: 0.3rem; }
+    .product-card .product-card-img { flex: 1; min-height: 24px; font-size: 0.85rem; }
+    .product-card-body { padding: 0.25rem 0.2rem; }
+    .product-card-name { font-size: 0.6rem; }
+    .product-card-price { font-size: 0.65rem; }
+    .product-card-add { width: 20px; height: 20px; font-size: 0.7rem; }
+    .pos-step-body { padding: 0.4rem; }
+    .cart-review-item { padding: 0.4rem; }
+    .cart-review-name { font-size: 0.72rem; }
 }
 </style>
 @endpush
 
 @section('content')
 <div class="pos-container">
-    <div class="pos-left">
-        <div class="pos-header">
-            <div class="d-flex align-items-center gap-3">
+
+    <!-- ===== STEP 1: Products ===== -->
+    <div class="pos-step" id="stepProducts" style="position:fixed;top:0;left:0;right:0;bottom:0;display:flex;flex-direction:column;">
+        <div class="pos-header" style="flex-shrink:0;">
+            <div class="d-flex align-items-center gap-2">
                 <a href="{{ route('dashboard') }}" class="btn btn-outline-secondary btn-sm">
                     <i class="fas fa-arrow-left"></i>
                 </a>
-                <h5 class="mb-0 fw-bold"><i class="fas fa-cash-register me-2"></i>@lang('app.pos')</h5>
+                <h5 class="mb-0 fw-bold" style="font-size:0.95rem"><i class="fas fa-cash-register me-1"></i>@lang('app.pos')</h5>
             </div>
             <div class="d-flex align-items-center gap-2">
-                <span class="badge bg-primary fs-6" id="clock"></span>
+                <button class="btn btn-sm btn-outline-secondary" id="togglePhotosBtn" title="@lang('app.show_photos')">
+                    <i class="fas fa-images"></i>
+                </button>
+                <div class="btn-group btn-group-sm">
+                    <a href="{{ route('lang.switch', 'id') }}" class="btn {{ App::getLocale() == 'id' ? 'btn-primary' : 'btn-outline-secondary' }}">ID</a>
+                    <a href="{{ route('lang.switch', 'en') }}" class="btn {{ App::getLocale() == 'en' ? 'btn-primary' : 'btn-outline-secondary' }}">EN</a>
+                </div>
+                <span class="badge bg-primary" style="font-size:0.8rem" id="clock"></span>
             </div>
         </div>
 
-        <div class="pos-search">
-            <div class="input-group input-group-lg">
+        <div class="pos-search" style="flex-shrink:0;">
+            <div class="input-group input-group-sm">
                 <span class="input-group-text bg-white"><i class="fas fa-search"></i></span>
-                <input type="text" id="productSearch" class="form-control form-control-lg" placeholder="@lang('app.search_product')" autofocus>
+                <input type="text" id="productSearch" class="form-control" placeholder="@lang('app.search_product')" autofocus>
             </div>
-            <div class="input-group mt-2">
+            <div class="input-group input-group-sm mt-1">
                 <span class="input-group-text bg-white"><i class="fas fa-qrcode"></i></span>
                 <input type="text" id="barcodeInput" class="form-control" placeholder="@lang('app.scan_barcode')">
             </div>
         </div>
 
-        <div class="pos-categories">
+        <div class="pos-categories" style="flex-shrink:0;">
             <button class="btn btn-sm category-filter active" data-id="">@lang('app.all')</button>
             @foreach($categories ?? [] as $category)
             <button class="btn btn-sm btn-outline-secondary category-filter" data-id="{{ $category->id }}">{{ $category->name }}</button>
             @endforeach
         </div>
 
-        <div class="pos-products" id="productGrid">
+        <div class="pos-products" id="productGrid" style="flex:1;min-height:0;overflow-y:auto;display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:0.6rem;padding:0.75rem;align-content:start;">
             @forelse($products ?? [] as $product)
             <div class="product-card" tabindex="0" role="button"
                  data-id="{{ $product->id }}"
                  data-name="{{ $product->name }}"
                  data-price="{{ $product->price }}"
                  data-stock="{{ $product->stock }}"
-                 data-sku="{{ $product->sku }}">
+                 data-sku="{{ $product->sku }}"
+                 data-barcode="{{ $product->barcode }}"
+                 data-category-id="{{ $product->category_id }}">
                 <div class="product-card-img">
                     @if($product->image)
                         <img src="{{ asset('storage/' . $product->image) }}" alt="{{ $product->name }}">
@@ -190,11 +386,13 @@
                     @endif
                 </div>
                 <div class="product-card-body">
-                    <small class="product-card-name">{{ $product->name }}</small>
-                    <small class="product-card-sku text-muted">{{ $product->sku ?? '' }}</small>
+                    <span class="product-card-name">{{ $product->name }}</span>
                     <strong class="product-card-price">Rp {{ number_format($product->price, 0, ',', '.') }}</strong>
-                    <small class="product-card-stock text-muted">@lang('app.stock_qty'): {{ $product->stock }}</small>
                 </div>
+                <button class="product-card-add" onclick="event.stopPropagation(); addToCart(this)" title="Tambah">
+                    <span class="add-icon">+</span>
+                    <span class="add-qty" style="display:none"></span>
+                </button>
             </div>
             @empty
             <div class="text-center text-muted py-5 w-100">
@@ -203,51 +401,85 @@
             </div>
             @endforelse
         </div>
+
+        <!-- Floating Cart Bar -->
+        <div class="cart-float" id="cartFloat" style="display:none;flex-shrink:0;">
+            <div class="cart-float-info">
+                <i class="fas fa-shopping-cart me-1"></i>
+                <span id="cartFloatCount">0</span> item
+                <span class="mx-1">·</span>
+                <strong id="cartFloatTotal">Rp 0</strong>
+            </div>
+            <button class="btn btn-success btn-float-continue" id="btnContinue" onclick="showStep('cart')">
+                Lanjutkan <i class="fas fa-arrow-right ms-1"></i>
+            </button>
+        </div>
     </div>
 
-    <div class="pos-right">
-        <div class="cart-header">
-            <h6 class="mb-0 fw-bold"><i class="fas fa-shopping-cart me-2"></i>@lang('app.cart')</h6>
-            <button class="btn btn-sm btn-outline-danger" id="clearCartBtn" onclick="clearCart()">
+    <!-- ===== STEP 2: Cart Review ===== -->
+    <div class="pos-step pos-step-hidden" id="stepCart">
+        <div class="pos-step-header">
+            <button class="btn btn-sm btn-step-back" onclick="showStep('products')">
+                <i class="fas fa-arrow-left"></i>
+            </button>
+            <h6 class="mb-0 fw-bold"><i class="fas fa-shopping-cart me-2"></i>Daftar Belanja</h6>
+            <button class="btn btn-sm btn-outline-danger" onclick="clearCart(); showStep('products')">
                 <i class="fas fa-trash"></i>
             </button>
         </div>
 
-        <div class="cart-items" id="cartItems">
-            <div class="text-center text-muted py-5" id="emptyCart">
+        <div class="pos-step-body" id="cartReviewBody">
+            <div class="text-center text-muted py-5" id="emptyCartMsg">
                 <i class="fas fa-cart-plus fa-3x mb-3"></i>
                 <p>@lang('app.cart_empty')</p>
-                <small>@lang('app.click_to_add')</small>
             </div>
         </div>
 
-        <div class="cart-summary">
-            <div class="d-flex justify-content-between mb-2">
-                <span class="text-muted">@lang('app.subtotal')</span>
-                <span id="subtotal">Rp 0</span>
+        <div class="pos-step-footer" id="cartFooter" style="display:none">
+            <div class="d-flex justify-content-between mb-1">
+                <span class="text-muted small">@lang('app.subtotal')</span>
+                <span id="reviewSubtotal" class="fw-semibold">Rp 0</span>
             </div>
-            <div class="d-flex justify-content-between mb-2">
-                <span class="text-muted">@lang('app.discount')</span>
+            <div class="d-flex justify-content-between align-items-center mb-1">
+                <span class="text-muted small">@lang('app.discount')</span>
                 <div class="d-flex align-items-center gap-1">
-                    <input type="number" id="discountInput" class="form-control form-control-sm text-end" style="width:100px" value="0" min="0" onchange="updateTotals()">
-                    <select id="discountType" class="form-select form-select-sm" style="width:70px" onchange="updateTotals()">
+                    <input type="number" id="reviewDiscount" class="form-control form-control-sm text-end"
+                           style="width:75px" value="0" min="0" oninput="updateReviewTotals()">
+                    <select id="reviewDiscountType" class="form-select form-select-sm"
+                            style="width:55px" onchange="updateReviewTotals()">
                         <option value="fixed">Rp</option>
                         <option value="percent">%</option>
                     </select>
                 </div>
             </div>
-            <hr>
-            <div class="d-flex justify-content-between mb-3">
-                <strong class="fs-5">@lang('app.grand_total')</strong>
-                <strong class="fs-5 text-primary" id="grandTotal">Rp 0</strong>
+            <hr class="my-1">
+            <div class="d-flex justify-content-between align-items-center mb-2">
+                <strong>@lang('app.grand_total')</strong>
+                <strong class="text-primary fs-5" id="reviewGrandTotal">Rp 0</strong>
             </div>
+            <button class="btn btn-primary btn-lg w-100" id="btnPay" onclick="showStep('payment')">
+                Bayar <i class="fas fa-arrow-right ms-1"></i>
+            </button>
+        </div>
+    </div>
 
+    <!-- ===== STEP 3: Payment ===== -->
+    <div class="pos-step pos-step-hidden" id="stepPayment">
+        <div class="pos-step-header">
+            <button class="btn btn-sm btn-step-back" onclick="showStep('cart')">
+                <i class="fas fa-arrow-left"></i>
+            </button>
+            <h6 class="mb-0 fw-bold"><i class="fas fa-credit-card me-2"></i>Pembayaran</h6>
+        </div>
+
+        <div class="pos-step-body">
             <div class="mb-3">
-                <label class="form-label small text-muted">@lang('app.payment_method')</label>
+                <label class="form-label small text-muted">Metode Pembayaran</label>
                 <div class="row g-1" id="paymentMethods">
-                    @foreach(['cash' => __('app.cash'), 'transfer' => __('app.transfer'), 'qris' => __('app.qris'), 'ewallet' => __('app.ewallet'), 'credit' => __('app.credit'), 'debit' => __('app.debit'), 'receivable' => __('app.receivable')] as $val => $label)
+                    @foreach(['cash' => 'Tunai', 'transfer' => 'Transfer', 'qris' => 'QRIS', 'ewallet' => 'E-Wallet', 'credit' => 'Kredit', 'debit' => 'Debit', 'receivable' => 'Piutang'] as $val => $label)
                     <div class="col">
-                        <button class="btn btn-outline-primary btn-sm w-100 payment-method {{ $val === 'cash' ? 'active' : '' }}" data-method="{{ $val }}" onclick="selectPayment(this)">
+                        <button class="btn btn-outline-primary btn-sm w-100 payment-method {{ $val === 'cash' ? 'active' : '' }}"
+                                data-method="{{ $val }}" onclick="selectPayment(this)">
                             {{ $label }}
                         </button>
                     </div>
@@ -255,23 +487,29 @@
                 </div>
             </div>
 
-            <div class="mb-3" id="cashReceivedGroup">
-                <label class="form-label small text-muted">@lang('app.cash_received')</label>
-                <input type="number" id="cashReceived" class="form-control" placeholder="0" value="0" onchange="updateChange()">
-                <div class="d-flex justify-content-between mt-1">
-                    <span class="small text-muted">@lang('app.change_due')</span>
-                    <span class="fw-bold text-success" id="changeDue">Rp 0</span>
-                </div>
+            <div class="d-flex justify-content-between align-items-center mb-3 p-3 bg-light rounded">
+                <span class="text-muted">@lang('app.grand_total')</span>
+                <strong class="fs-4 text-primary" id="paymentGrandTotal">Rp 0</strong>
             </div>
 
-            <div class="d-grid gap-2">
-                <button class="btn btn-primary btn-lg fw-bold" id="checkoutBtn" onclick="checkout()" disabled>
-                    <i class="fas fa-check-circle me-2"></i>@lang('app.checkout')
-                </button>
-                <button class="btn btn-outline-secondary" onclick="printReceipt()" disabled>
-                    <i class="fas fa-print me-2"></i>@lang('app.print')
-                </button>
+            <div class="mb-3" id="cashReceivedGroup">
+                <label class="form-label small text-muted">Jumlah Tunai Diterima</label>
+                <input type="number" id="paymentCashReceived" class="form-control form-control-lg"
+                       placeholder="0" value="0" oninput="updatePaymentChange()">
+                <div class="d-flex justify-content-between mt-1">
+                    <span class="small text-muted">Kembalian</span>
+                    <span class="fw-bold text-success fs-5" id="paymentChangeDue">Rp 0</span>
+                </div>
             </div>
+        </div>
+
+        <div class="pos-step-footer">
+            <button class="btn btn-primary btn-lg w-100 fw-bold" id="checkoutBtn" onclick="checkout()" disabled>
+                <i class="fas fa-check-circle me-2"></i>@lang('app.checkout')
+            </button>
+            <button class="btn btn-outline-secondary w-100 mt-1" onclick="printReceipt()" disabled>
+                <i class="fas fa-print me-2"></i>Cetak Struk
+            </button>
         </div>
     </div>
 </div>
@@ -299,29 +537,55 @@ const lang = {
     thank_you: '{{ __("app.thank_you") }}',
 };
 
+// ===== Step Navigation =====
+function showStep(step) {
+    document.querySelectorAll('.pos-step').forEach(el => el.classList.add('pos-step-hidden'));
+    document.getElementById('step' + step.charAt(0).toUpperCase() + step.slice(1)).classList.remove('pos-step-hidden');
+    if (step === 'cart') renderCartReview();
+    if (step === 'payment') {
+        document.getElementById('paymentGrandTotal').textContent = 'Rp ' + getGrandTotal().toLocaleString('id-ID');
+        document.getElementById('cashReceivedGroup').style.display = selectedPayment === 'cash' ? 'block' : 'none';
+        updatePaymentChange();
+    }
+}
+
+// ===== Clock =====
 function updateClock() {
     const now = new Date();
-    document.getElementById('clock').textContent = now.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+    document.getElementById('clock').textContent = now.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
 }
 setInterval(updateClock, 1000);
 updateClock();
 
+// ===== Product Search =====
 document.getElementById('productSearch').addEventListener('input', function() {
     const q = this.value.toLowerCase();
     document.querySelectorAll('.product-card').forEach(card => {
         const name = card.dataset.name.toLowerCase();
-        card.style.display = name.includes(q) ? '' : 'none';
+        const sku = (card.dataset.sku || '').toLowerCase();
+        const barcode = (card.dataset.barcode || '').toLowerCase();
+        card.style.display = name.includes(q) || sku.includes(q) || barcode.includes(q) ? '' : 'none';
     });
 });
 
+// ===== Barcode Scan =====
 document.getElementById('barcodeInput').addEventListener('keydown', function(e) {
     if (e.key === 'Enter') {
         e.preventDefault();
         const barcode = this.value.trim();
+        console.log('🔍 Barcode search:', JSON.stringify(barcode));
         if (barcode) {
-            const card = document.querySelector(`.product-card[data-sku="${barcode}"]`);
+            const firstCard = document.querySelector('.product-card');
+            if (firstCard) {
+                console.log('First card dataset:', JSON.stringify(firstCard.dataset));
+                console.log('First card HTML:', firstCard.outerHTML.substring(0, 300));
+            }
+            const skuCard = document.querySelector(`.product-card[data-sku="${barcode}"]`);
+            const barcodeCard = document.querySelector(`.product-card[data-barcode="${barcode}"]`);
+            const card = skuCard || barcodeCard;
+            console.log('📦 SKU match:', !!skuCard, '| Barcode match:', !!barcodeCard);
             if (card) {
-                card.click();
+                addToCart(card.querySelector('.product-card-add'));
                 this.value = '';
             } else {
                 alert(lang.product_not_found + ' ' + barcode);
@@ -330,6 +594,30 @@ document.getElementById('barcodeInput').addEventListener('keydown', function(e) 
     }
 });
 
+// ===== Photo Toggle =====
+(function() {
+    const productGrid = document.getElementById('productGrid');
+    const toggleBtn = document.getElementById('togglePhotosBtn');
+    const savedPhotoPref = localStorage.getItem('pos_show_photos');
+    const isMobile = window.innerWidth < 992;
+
+    function updateToggleBtn() {
+        const hidden = productGrid.classList.contains('hide-photos');
+        toggleBtn.classList.toggle('btn-outline-secondary', !hidden);
+        toggleBtn.classList.toggle('hide-photos-btn-active', hidden);
+    }
+
+    if (savedPhotoPref === null ? isMobile : savedPhotoPref === 'false') {
+        productGrid.classList.add('hide-photos');
+    }
+    updateToggleBtn();
+
+    toggleBtn.addEventListener('click', function() {
+        productGrid.classList.toggle('hide-photos');
+        localStorage.setItem('pos_show_photos', !productGrid.classList.contains('hide-photos'));
+        updateToggleBtn();
+    });
+})();
 document.querySelectorAll('.category-filter').forEach(btn => {
     btn.addEventListener('click', function() {
         document.querySelectorAll('.category-filter').forEach(b => b.classList.remove('active'));
@@ -345,23 +633,18 @@ document.querySelectorAll('.category-filter').forEach(btn => {
     });
 });
 
-document.querySelectorAll('.product-card').forEach(card => {
-    card.addEventListener('click', function() {
-        addToCart(this.dataset.id, this.dataset.name, parseInt(this.dataset.price), parseInt(this.dataset.stock));
-    });
-    card.addEventListener('keydown', function(e) {
-        if (e.key === 'Enter' || e.key === ' ') {
-            e.preventDefault();
-            this.click();
-        }
-    });
-});
+// ===== Add to Cart =====
+function addToCart(btn) {
+    const card = btn.closest('.product-card');
+    const id = card.dataset.id;
+    const name = card.dataset.name;
+    const price = parseInt(card.dataset.price);
+    const stock = parseInt(card.dataset.stock);
 
-function addToCart(id, name, price, stock) {
     const existing = cart.find(item => item.id === id);
     if (existing) {
         if (existing.qty >= stock) {
-            alert('@lang('app.insufficient_stock', ['product' => '', 'stock' => ''])');
+            alert('Stok tidak mencukupi!');
             return;
         }
         existing.qty++;
@@ -372,120 +655,179 @@ function addToCart(id, name, price, stock) {
         }
         cart.push({ id, name, price, stock, qty: 1 });
     }
-    renderCart();
+
+    updateProductBadge(btn, id);
+    updateCartFloat();
 }
 
-function renderCart() {
-    const container = document.getElementById('cartItems');
+function updateProductBadge(btn, id) {
+    const item = cart.find(i => i.id === id);
+    const qtySpan = btn.querySelector('.add-qty');
+    const iconSpan = btn.querySelector('.add-icon');
+
+    if (item) {
+        btn.classList.add('has-qty');
+        qtySpan.style.display = 'inline';
+        qtySpan.textContent = item.qty;
+        iconSpan.textContent = '+';
+    } else {
+        btn.classList.remove('has-qty');
+        qtySpan.style.display = 'none';
+        iconSpan.textContent = '+';
+    }
+}
+
+function updateCartFloat() {
+    const floatBar = document.getElementById('cartFloat');
+    const count = cart.reduce((sum, item) => sum + item.qty, 0);
+    const total = cart.reduce((sum, item) => sum + item.price * item.qty, 0);
+
+    if (count === 0) {
+        floatBar.style.display = 'none';
+        return;
+    }
+    floatBar.style.display = 'flex';
+    document.getElementById('cartFloatCount').textContent = count;
+    document.getElementById('cartFloatTotal').textContent = 'Rp ' + total.toLocaleString('id-ID');
+}
+
+function refreshAllBadges() {
+    document.querySelectorAll('.product-card-add').forEach(btn => {
+        const card = btn.closest('.product-card');
+        const id = card.dataset.id;
+        const item = cart.find(i => i.id === id);
+        if (item) {
+            btn.classList.add('has-qty');
+            btn.querySelector('.add-qty').style.display = 'inline';
+            btn.querySelector('.add-qty').textContent = item.qty;
+        } else {
+            btn.classList.remove('has-qty');
+            btn.querySelector('.add-qty').style.display = 'none';
+        }
+    });
+}
+
+// ===== Cart Review =====
+function renderCartReview() {
+    const body = document.getElementById('cartReviewBody');
+    const footer = document.getElementById('cartFooter');
+    const emptyMsg = document.getElementById('emptyCartMsg');
 
     if (cart.length === 0) {
-        container.innerHTML = `
-            <div class="text-center text-muted py-5">
-                <i class="fas fa-cart-plus fa-3x mb-3"></i>
-                <p>${lang.cart_empty}</p>
-                <small>${lang.click_to_add}</small>
-            </div>
-        `;
-        document.getElementById('checkoutBtn').disabled = true;
-        document.querySelector('button[onclick="printReceipt()"]').disabled = true;
-        updateTotals();
+        body.innerHTML = '';
+        body.appendChild(emptyMsg);
+        emptyMsg.style.display = '';
+        footer.style.display = 'none';
         return;
     }
 
-    document.getElementById('checkoutBtn').disabled = false;
-    document.querySelector('button[onclick="printReceipt()"]').disabled = false;
+    emptyMsg.style.display = 'none';
+    footer.style.display = '';
 
     let html = '';
     cart.forEach((item, idx) => {
         html += `
-            <div class="cart-item">
-                <div class="cart-item-info">
-                    <div class="cart-item-name">${item.name}</div>
-                    <div class="cart-item-price">Rp ${item.price.toLocaleString('id-ID')}</div>
+            <div class="cart-review-item">
+                <div class="cart-review-info">
+                    <div class="cart-review-name">${item.name}</div>
+                    <div class="cart-review-price">Rp ${item.price.toLocaleString('id-ID')}</div>
                 </div>
-                <div class="cart-item-actions">
-                    <button class="btn btn-sm btn-outline-secondary" onclick="updateQty(${idx}, -1)">−</button>
-                    <span class="cart-item-qty">${item.qty}</span>
-                    <button class="btn btn-sm btn-outline-secondary" onclick="updateQty(${idx}, 1)">+</button>
-                    <span class="cart-item-subtotal ms-2 fw-semibold">Rp ${(item.price * item.qty).toLocaleString('id-ID')}</span>
-                    <button class="btn btn-sm btn-outline-danger ms-1" onclick="removeItem(${idx})"><i class="fas fa-times"></i></button>
+                <div class="cart-review-qty">
+                    <button class="btn btn-outline-secondary" onclick="reviewUpdateQty(${idx}, -1)">−</button>
+                    <span>${item.qty}</span>
+                    <button class="btn btn-outline-secondary" onclick="reviewUpdateQty(${idx}, 1)">+</button>
                 </div>
+                <div class="cart-review-subtotal">Rp ${(item.price * item.qty).toLocaleString('id-ID')}</div>
+                <button class="cart-review-remove" onclick="reviewRemoveItem(${idx})">&times;</button>
             </div>
         `;
     });
-    container.innerHTML = html;
-    updateTotals();
+    body.innerHTML = html;
+    updateReviewTotals();
 }
 
-function updateQty(idx, delta) {
+function reviewUpdateQty(idx, delta) {
     const item = cart[idx];
     const newQty = item.qty + delta;
     if (newQty < 1) {
         cart.splice(idx, 1);
     } else if (newQty > item.stock) {
-        alert('@lang('app.insufficient_stock', ['product' => '', 'stock' => ''])');
+        alert('Stok tidak mencukupi!');
         return;
     } else {
         item.qty = newQty;
     }
-    renderCart();
+    refreshAllBadges();
+    updateCartFloat();
+    renderCartReview();
 }
 
-function removeItem(idx) {
+function reviewRemoveItem(idx) {
     cart.splice(idx, 1);
-    renderCart();
+    refreshAllBadges();
+    updateCartFloat();
+    renderCartReview();
+}
+
+function updateReviewTotals() {
+    const subtotal = cart.reduce((sum, item) => sum + item.price * item.qty, 0);
+    const discountVal = parseInt(document.getElementById('reviewDiscount').value) || 0;
+    const discountType = document.getElementById('reviewDiscountType').value;
+    let discount = discountType === 'percent' ? Math.round(subtotal * discountVal / 100) : discountVal;
+    if (discount > subtotal) discount = subtotal;
+    const grandTotal = subtotal - discount;
+    document.getElementById('reviewSubtotal').textContent = 'Rp ' + subtotal.toLocaleString('id-ID');
+    document.getElementById('reviewGrandTotal').textContent = 'Rp ' + grandTotal.toLocaleString('id-ID');
+}
+
+function getGrandTotal() {
+    const subtotal = cart.reduce((sum, item) => sum + item.price * item.qty, 0);
+    const discountVal = parseInt(document.getElementById('reviewDiscount').value) || 0;
+    const discountType = document.getElementById('reviewDiscountType').value;
+    let discount = discountType === 'percent' ? Math.round(subtotal * discountVal / 100) : discountVal;
+    return Math.max(subtotal - discount, 0);
 }
 
 function clearCart() {
     if (cart.length === 0) return;
     if (confirm(lang.clear_cart)) {
         cart = [];
-        renderCart();
+        document.getElementById('reviewDiscount').value = 0;
+        document.getElementById('paymentCashReceived').value = 0;
+        refreshAllBadges();
+        updateCartFloat();
+        renderCartReview();
     }
 }
 
-function updateTotals() {
-    const subtotal = cart.reduce((sum, item) => sum + item.price * item.qty, 0);
-    const discountVal = parseInt(document.getElementById('discountInput').value) || 0;
-    const discountType = document.getElementById('discountType').value;
-    let discount = discountType === 'percent' ? Math.round(subtotal * discountVal / 100) : discountVal;
-    if (discount > subtotal) discount = subtotal;
-    const grandTotal = subtotal - discount;
-
-    document.getElementById('subtotal').textContent = 'Rp ' + subtotal.toLocaleString('id-ID');
-    document.getElementById('grandTotal').textContent = 'Rp ' + grandTotal.toLocaleString('id-ID');
-    updateChange();
-}
-
-function updateChange() {
-    const grandTotal = getGrandTotal();
-    const cashReceived = parseInt(document.getElementById('cashReceived').value) || 0;
-    const change = cashReceived - grandTotal;
-    document.getElementById('changeDue').textContent = 'Rp ' + (change > 0 ? change : 0).toLocaleString('id-ID');
-}
-
-function getGrandTotal() {
-    const subtotal = cart.reduce((sum, item) => sum + item.price * item.qty, 0);
-    const discountVal = parseInt(document.getElementById('discountInput').value) || 0;
-    const discountType = document.getElementById('discountType').value;
-    let discount = discountType === 'percent' ? Math.round(subtotal * discountVal / 100) : discountVal;
-    if (discount > subtotal) discount = subtotal;
-    return subtotal - discount;
-}
-
+// ===== Payment =====
 function selectPayment(btn) {
-    document.querySelectorAll('.payment-method').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('#paymentMethods .payment-method').forEach(b => b.classList.remove('active'));
     btn.classList.add('active');
     selectedPayment = btn.dataset.method;
-    const cashGroup = document.getElementById('cashReceivedGroup');
-    cashGroup.style.display = selectedPayment === 'cash' ? 'block' : 'none';
+    document.getElementById('cashReceivedGroup').style.display = selectedPayment === 'cash' ? 'block' : 'none';
+    updatePaymentChange();
+}
+
+function updatePaymentChange() {
+    const grandTotal = getGrandTotal();
+    const cashReceived = parseInt(document.getElementById('paymentCashReceived').value) || 0;
+    const change = cashReceived - grandTotal;
+    document.getElementById('paymentGrandTotal').textContent = 'Rp ' + grandTotal.toLocaleString('id-ID');
+    document.getElementById('paymentChangeDue').textContent = 'Rp ' + Math.max(change, 0).toLocaleString('id-ID');
+    const checkoutBtn = document.getElementById('checkoutBtn');
+    if (selectedPayment === 'cash') {
+        checkoutBtn.disabled = cashReceived < grandTotal || cart.length === 0;
+    } else {
+        checkoutBtn.disabled = cart.length === 0;
+    }
 }
 
 function checkout() {
     if (cart.length === 0) return;
     const grandTotal = getGrandTotal();
     if (selectedPayment === 'cash') {
-        const cashReceived = parseInt(document.getElementById('cashReceived').value) || 0;
+        const cashReceived = parseInt(document.getElementById('paymentCashReceived').value) || 0;
         if (cashReceived < grandTotal) {
             alert(lang.insufficient_cash);
             return;
@@ -498,14 +840,15 @@ function checkout() {
         price: item.price
     }));
 
-    document.getElementById('checkoutBtn').disabled = true;
-    document.getElementById('checkoutBtn').innerHTML = '<span class="spinner-border spinner-border-sm"></span> ' + lang.processing;
+    const checkoutBtn = document.getElementById('checkoutBtn');
+    checkoutBtn.disabled = true;
+    checkoutBtn.innerHTML = '<span class="spinner-border spinner-border-sm"></span> ' + lang.processing;
 
-    const discountVal = parseInt(document.getElementById('discountInput').value) || 0;
-    const discountType = document.getElementById('discountType').value;
+    const discountVal = parseInt(document.getElementById('reviewDiscount').value) || 0;
+    const discountType = document.getElementById('reviewDiscountType').value;
     const subtotal = cart.reduce((sum, item) => sum + item.price * item.qty, 0);
     const discount = discountType === 'percent' ? Math.round(subtotal * discountVal / 100) : discountVal;
-    const cashReceived = parseInt(document.getElementById('cashReceived').value) || 0;
+    const cashReceived = parseInt(document.getElementById('paymentCashReceived').value) || 0;
     const paidAmount = selectedPayment === 'cash' ? cashReceived : grandTotal;
 
     fetch('{{ route("pos.checkout") }}', {
@@ -518,7 +861,7 @@ function checkout() {
             items: items,
             payment_method: selectedPayment,
             paid_amount: paidAmount,
-            discount: discount > grandTotal ? grandTotal : discount
+            discount: Math.min(discount, grandTotal)
         })
     })
     .then(res => res.json())
@@ -527,15 +870,18 @@ function checkout() {
             alert(lang.transaction_success);
             const printUrl = data.print_url;
             cart = [];
-            document.getElementById('discountInput').value = 0;
-            document.getElementById('cashReceived').value = 0;
-            renderCart();
+            document.getElementById('reviewDiscount').value = 0;
+            document.getElementById('paymentCashReceived').value = 0;
+            document.getElementById('reviewDiscountType').value = 'fixed';
+            refreshAllBadges();
+            updateCartFloat();
+            showStep('products');
             if (printUrl) {
-                const printWin = window.open(printUrl, 'receipt', 'width=400,height=600');
+                const printWin = window.open(printUrl, 'receipt', 'width=380,height=600');
                 if (printWin) printWin.focus();
             }
         } else {
-            alert(lang.error + ': ' + (data.message || 'Transaction failed'));
+            alert(lang.error + ': ' + (data.message || 'Transaksi gagal'));
         }
     })
     .catch(err => {
@@ -543,8 +889,8 @@ function checkout() {
         console.error(err);
     })
     .finally(() => {
-        document.getElementById('checkoutBtn').disabled = false;
-        document.getElementById('checkoutBtn').innerHTML = '<i class="fas fa-check-circle me-2"></i>@lang('app.checkout')';
+        checkoutBtn.disabled = false;
+        checkoutBtn.innerHTML = '<i class="fas fa-check-circle me-2"></i>@lang('app.checkout')';
     });
 }
 
@@ -560,6 +906,12 @@ function printReceipt() {
             <td class="text-end">Rp ${(item.price * item.qty).toLocaleString('id-ID')}</td>
         </tr>`;
     });
+
+    const discountVal = parseInt(document.getElementById('reviewDiscount').value) || 0;
+    const discountType = document.getElementById('reviewDiscountType').value;
+    const subtotal = cart.reduce((sum, item) => sum + item.price * item.qty, 0);
+    let discount = discountType === 'percent' ? Math.round(subtotal * discountVal / 100) : discountVal;
+    if (discount > subtotal) discount = subtotal;
 
     const footerText = settings.receipt_footer || lang.thank_you;
     const printWin = window.open('', '_blank', 'width=300,height=600');
@@ -588,6 +940,7 @@ function printReceipt() {
             <tr><th>@lang('app.item')</th><th class="text-center">@lang('app.quantity')</th><th class="text-end">@lang('app.unit_price')</th><th class="text-end">@lang('app.total')</th></tr>
             ${itemsHtml}
         </table>
+        ${discount > 0 ? `<hr><div style="display:flex;justify-content:space-between;"><span>@lang('app.discount')</span><span>Rp ${discount.toLocaleString('id-ID')}</span></div>` : ''}
         <hr>
         <div style="display:flex;justify-content:space-between;">
             <strong>@lang('app.grand_total')</strong>
@@ -600,6 +953,17 @@ function printReceipt() {
     `);
     printWin.document.close();
 }
+
+// ===== Discount & Cash Events =====
+document.getElementById('reviewDiscount')?.addEventListener('input', function() {
+    renderCartReview();
+});
+document.getElementById('reviewDiscountType')?.addEventListener('change', function() {
+    renderCartReview();
+});
+document.getElementById('paymentCashReceived')?.addEventListener('input', function() {
+    updatePaymentChange();
+});
 </script>
 @endpush
 @endsection

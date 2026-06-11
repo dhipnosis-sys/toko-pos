@@ -285,6 +285,9 @@ return [
     'thank_you' => 'Thank you for your purchase!',
     'processing' => 'Processing...',
     'for' => 'for',
+    'toggle_photos' => 'Photos',
+    'show_photos' => 'Show Photos',
+    'hide_photos' => 'Hide Photos',
 
     // Language
     'language' => 'Language',

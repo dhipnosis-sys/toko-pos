@@ -16,12 +16,6 @@
 </head>
 <body class="pos-body">
     <div class="pos-wrapper">
-        <div class="position-fixed bottom-0 end-0 m-3 z-3">
-            <div class="btn-group btn-group-sm shadow-sm">
-                <a href="{{ route('lang.switch', 'id') }}" class="btn {{ App::getLocale() == 'id' ? 'btn-primary' : 'btn-light' }} border">ID</a>
-                <a href="{{ route('lang.switch', 'en') }}" class="btn {{ App::getLocale() == 'en' ? 'btn-primary' : 'btn-light' }} border">EN</a>
-            </div>
-        </div>
         @yield('content')
     </div>
 
