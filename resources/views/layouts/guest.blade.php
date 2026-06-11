@@ -21,7 +21,7 @@
         <div class="min-h-screen flex flex-col sm:justify-center items-center pt-6 sm:pt-0 bg-green-50">
             <div>
                 <a href="/">
-                    <img src="{{ asset('images/Gemini_Generated_Image_bzd277bzd277bzd2.png') }}" alt="Logo" class="w-full sm:max-w-md" style="height: auto;">
+                    <img src="{{ asset('images/logo.webp') }}" alt="Logo" class="w-full sm:max-w-md" style="height: auto;">
                 </a>
             </div>
 
