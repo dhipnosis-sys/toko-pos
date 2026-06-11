@@ -4,6 +4,7 @@
         <meta charset="utf-8">
         <meta name="viewport" content="width=device-width, initial-scale=1">
         <meta name="csrf-token" content="{{ csrf_token() }}">
+        <link rel="icon" type="image/png" href="{{ asset('favicon.png') }}">
 
         <title>{{ config('app.name', 'Laravel') }}</title>
 
@@ -21,7 +22,7 @@
         <div class="min-h-screen flex flex-col sm:justify-center items-center pt-6 sm:pt-0 bg-green-50">
             <div>
                 <a href="/">
-                    <img src="{{ asset('images/Gemini_Generated_Image_bzd277bzd277bzd2.png') }}" alt="Logo" class="w-full sm:max-w-md" style="height: auto;">
+                    <img src="{{ asset('images/logo_transparan2.webp') }}" alt="Logo" class="w-full sm:max-w-md" style="height: auto;">
                 </a>
             </div>
 
