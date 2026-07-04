@@ -153,6 +153,19 @@
                         <span>@lang('app.suppliers')</span>
                     </a>
                 </li>
+                <li class="nav-divider"><span>Produksi</span></li>
+                <li class="nav-item">
+                    <a href="{{ route('bom.index') }}" class="nav-link {{ request()->routeIs('bom.*') ? 'active' : '' }}">
+                        <i class="fas fa-clipboard-list"></i>
+                        <span>Bill of Materials</span>
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a href="{{ route('production.index') }}" class="nav-link {{ request()->routeIs('production.*') ? 'active' : '' }}">
+                        <i class="fas fa-cogs"></i>
+                        <span>Production Orders</span>
+                    </a>
+                </li>
                 <li class="nav-divider"><span>@lang('app.sales_history')</span></li>
                 <li class="nav-item">
                     <a href="{{ route('customers.index') }}" class="nav-link {{ request()->routeIs('customers.*') ? 'active' : '' }}">
@@ -242,6 +255,7 @@
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
     <script>
         function isMobile() { return window.innerWidth < 992; }
 

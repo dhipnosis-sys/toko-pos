@@ -144,6 +144,23 @@ class POSController extends Controller
         }
     }
 
+    public function lookupBarcode($barcode)
+    {
+        $product = Product::where('barcode', $barcode)
+            ->orWhere('sku', $barcode)
+            ->where('is_active', true)
+            ->first();
+
+        if ($product) {
+            return response()->json([
+                'found' => true,
+                'product' => $product->load('category'),
+            ]);
+        }
+
+        return response()->json(['found' => false]);
+    }
+
     public function printReceipt(Sale $sale)
     {
         $sale->load('items.product', 'user', 'customer');

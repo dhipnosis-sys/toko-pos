@@ -27,7 +27,12 @@
                     </div>
                     <div class="col-md-3">
                         <label class="form-label">@lang('app.barcode')</label>
-                        <input type="text" name="barcode" class="form-control @error('barcode') is-invalid @enderror" value="{{ old('barcode') }}">
+                        <div class="input-group">
+                            <input type="text" name="barcode" class="form-control @error('barcode') is-invalid @enderror" value="{{ old('barcode') }}">
+                            <button type="button" class="btn btn-outline-secondary" onclick="startScanner('input[name=barcode]')" title="Scan Barcode">
+                                <i class="fas fa-camera"></i>
+                            </button>
+                        </div>
                         @error('barcode') <div class="invalid-feedback">{{ $message }}</div> @enderror
                     </div>
                     <div class="col-md-4">
@@ -108,4 +113,58 @@
         </div>
     </div>
 </div>
+@push('scripts')
+<script>
+let scannerInstance = null;
+
+function startScanner(inputSelector) {
+    const input = document.querySelector(inputSelector);
+    if (!input) return;
+
+    if (scannerInstance) {
+        stopScanner();
+        return;
+    }
+
+    const overlay = document.createElement('div');
+    overlay.id = 'scanner-overlay';
+    overlay.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.85);z-index:9999;display:flex;flex-direction:column;align-items:center;justify-content:center;';
+    overlay.innerHTML = '<div id="scanner-box" style="width:280px;height:280px;background:#000;border-radius:12px;overflow:hidden;"></div>' +
+        '<button type="button" class="btn btn-light mt-3" onclick="stopScanner()"><i class="fas fa-times me-1"></i>Tutup</button>' +
+        '<p class="text-white-50 mt-2 small">Arahkan kamera ke barcode produk</p>';
+    document.body.appendChild(overlay);
+
+    scannerInstance = new Html5Qrcode('scanner-box');
+    scannerInstance.start(
+        { facingMode: 'environment' },
+        { fps: 10, qrbox: { width: 240, height: 120 } },
+        function(decodedText) {
+            input.value = decodedText;
+            stopScanner();
+        },
+        function() {}
+    ).catch(function(err) {
+        alert('Tidak dapat mengakses kamera: ' + err);
+        stopScanner();
+    });
+}
+
+function stopScanner() {
+    if (scannerInstance) {
+        scannerInstance.stop().then(function() {
+            scannerInstance = null;
+            var el = document.getElementById('scanner-overlay');
+            if (el) el.remove();
+        }).catch(function() {
+            scannerInstance = null;
+            var el = document.getElementById('scanner-overlay');
+            if (el) el.remove();
+        });
+    } else {
+        var el = document.getElementById('scanner-overlay');
+        if (el) el.remove();
+    }
+}
+</script>
+@endpush
 @endsection
