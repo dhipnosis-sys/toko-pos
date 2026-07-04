@@ -12,6 +12,8 @@ use App\Http\Controllers\SaleController;
 use App\Http\Controllers\ReportController;
 use App\Http\Controllers\UserController;
 use App\Http\Controllers\RoleController;
+use App\Http\Controllers\BOMController;
+use App\Http\Controllers\ProductionController;
 use App\Http\Controllers\SettingController;
 use Illuminate\Support\Facades\Route;
 
@@ -35,6 +37,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::post('/pos/checkout', [POSController::class, 'checkout'])->name('pos.checkout');
     Route::get('/pos/products', [POSController::class, 'getProducts'])->name('pos.products');
     Route::get('/pos/product/{product}', [POSController::class, 'getProduct'])->name('pos.product');
+    Route::get('/pos/lookup-barcode/{barcode}', [POSController::class, 'lookupBarcode'])->name('pos.lookup-barcode');
     Route::get('/pos/print/{sale}', [POSController::class, 'printReceipt'])->name('pos.print');
     
     // Products
@@ -70,6 +73,17 @@ Route::middleware(['auth', 'verified'])->group(function () {
     // Settings
     Route::get('/settings', [SettingController::class, 'index'])->name('settings.index');
     Route::post('/settings', [SettingController::class, 'update'])->name('settings.update');
+
+    // BOM / Bill of Materials
+    Route::resource('bom', BOMController::class);
+    Route::post('/bom/simulate-hpp', [BOMController::class, 'simulateHpp'])->name('bom.simulate-hpp');
+    Route::post('/bom/save-cost-price', [BOMController::class, 'saveCostPrice'])->name('bom.save-cost-price');
+
+    // Production Orders
+    Route::resource('production', ProductionController::class);
+    Route::post('/production/{production}/process', [ProductionController::class, 'process'])->name('production.process');
+    Route::post('/production/{production}/cancel', [ProductionController::class, 'cancel'])->name('production.cancel');
+    Route::post('/production/{production}/apply-cost-price', [ProductionController::class, 'applyCostPrice'])->name('production.apply-cost-price');
 
     // Roles (owner only)
     Route::resource('roles', RoleController::class)->middleware('role:owner');

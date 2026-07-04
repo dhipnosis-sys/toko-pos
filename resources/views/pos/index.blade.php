@@ -358,6 +358,9 @@
             <div class="input-group input-group-sm mt-1">
                 <span class="input-group-text bg-white"><i class="fas fa-qrcode"></i></span>
                 <input type="text" id="barcodeInput" class="form-control" placeholder="@lang('app.scan_barcode')">
+                <button type="button" class="btn btn-outline-secondary" id="scanBarcodeBtn" title="Scan dari Kamera">
+                    <i class="fas fa-camera"></i>
+                </button>
             </div>
         </div>
 
@@ -573,26 +576,51 @@ document.getElementById('barcodeInput').addEventListener('keydown', function(e) 
     if (e.key === 'Enter') {
         e.preventDefault();
         const barcode = this.value.trim();
-        console.log('🔍 Barcode search:', JSON.stringify(barcode));
         if (barcode) {
-            const firstCard = document.querySelector('.product-card');
-            if (firstCard) {
-                console.log('First card dataset:', JSON.stringify(firstCard.dataset));
-                console.log('First card HTML:', firstCard.outerHTML.substring(0, 300));
-            }
-            const skuCard = document.querySelector(`.product-card[data-sku="${barcode}"]`);
-            const barcodeCard = document.querySelector(`.product-card[data-barcode="${barcode}"]`);
-            const card = skuCard || barcodeCard;
-            console.log('📦 SKU match:', !!skuCard, '| Barcode match:', !!barcodeCard);
-            if (card) {
-                addToCart(card.querySelector('.product-card-add'));
-                this.value = '';
-            } else {
-                alert(lang.product_not_found + ' ' + barcode);
-            }
+            handleBarcode(barcode, this);
         }
     }
 });
+
+function handleBarcode(barcode, inputEl) {
+    const skuCard = document.querySelector(`.product-card[data-sku="${barcode}"]`);
+    const barcodeCard = document.querySelector(`.product-card[data-barcode="${barcode}"]`);
+    const card = skuCard || barcodeCard;
+    if (card) {
+        addToCart(card.querySelector('.product-card-add'));
+        if (inputEl) inputEl.value = '';
+        return;
+    }
+    fetch('/pos/lookup-barcode/' + encodeURIComponent(barcode))
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+            if (data.found && data.product) {
+                var p = data.product;
+                var fakeBtn = {
+                    closest: function() {
+                        return {
+                            dataset: {
+                                id: String(p.id),
+                                name: p.name,
+                                price: p.retail_price || p.price || 0,
+                                stock: p.stock || 0
+                            },
+                            querySelector: function() { return fakeBtn; }
+                        };
+                    },
+                    classList: { add: function(){}, remove: function(){} },
+                    querySelector: function() { return { style: { display: 'none' }, textContent: '' }; }
+                };
+                addToCart(fakeBtn);
+                if (inputEl) inputEl.value = '';
+            } else {
+                alert(lang.product_not_found + ' ' + barcode);
+            }
+        })
+        .catch(function() {
+            alert(lang.product_not_found + ' ' + barcode);
+        });
+}
 
 // ===== Photo Toggle =====
 (function() {
@@ -964,6 +992,56 @@ document.getElementById('reviewDiscountType')?.addEventListener('change', functi
 document.getElementById('paymentCashReceived')?.addEventListener('input', function() {
     updatePaymentChange();
 });
+
+// ===== Camera Barcode Scanner =====
+let posScanner = null;
+
+document.getElementById('scanBarcodeBtn').addEventListener('click', function() {
+    if (posScanner) {
+        stopPosScanner();
+        return;
+    }
+
+    var overlay = document.createElement('div');
+    overlay.id = 'pos-scanner-overlay';
+    overlay.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.85);z-index:9999;display:flex;flex-direction:column;align-items:center;justify-content:center;';
+    overlay.innerHTML = '<div id="pos-scanner-box" style="width:280px;height:280px;background:#000;border-radius:12px;overflow:hidden;"></div>' +
+        '<button type="button" class="btn btn-light mt-3" onclick="stopPosScanner()"><i class="fas fa-times me-1"></i>Tutup</button>' +
+        '<p class="text-white-50 mt-2 small">Arahkan kamera ke barcode produk</p>';
+    document.body.appendChild(overlay);
+
+    posScanner = new Html5Qrcode('pos-scanner-box');
+    posScanner.start(
+        { facingMode: 'environment' },
+        { fps: 10, qrbox: { width: 240, height: 120 } },
+        function(decodedText) {
+            document.getElementById('barcodeInput').value = decodedText;
+            stopPosScanner();
+            handleBarcode(decodedText, document.getElementById('barcodeInput'));
+        },
+        function() {}
+    ).catch(function(err) {
+        alert('Tidak dapat mengakses kamera: ' + err);
+        stopPosScanner();
+    });
+});
+
+function stopPosScanner() {
+    if (posScanner) {
+        posScanner.stop().then(function() {
+            posScanner = null;
+            var el = document.getElementById('pos-scanner-overlay');
+            if (el) el.remove();
+        }).catch(function() {
+            posScanner = null;
+            var el = document.getElementById('pos-scanner-overlay');
+            if (el) el.remove();
+        });
+    } else {
+        var el = document.getElementById('pos-scanner-overlay');
+        if (el) el.remove();
+    }
+}
 </script>
 @endpush
 @endsection
