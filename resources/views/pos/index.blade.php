@@ -108,6 +108,16 @@
     position: absolute;
     bottom: 4px;
     right: 4px;
+    display: flex;
+    align-items: center;
+    gap: 3px;
+    padding: 0;
+    border: none;
+    background: none;
+    cursor: default;
+    z-index: 2;
+}
+.product-card-add .add-icon {
     width: 26px;
     height: 26px;
     border-radius: 50%;
@@ -121,36 +131,50 @@
     justify-content: center;
     cursor: pointer;
     transition: all 0.15s;
-    padding: 0;
     line-height: 1;
-    z-index: 2;
+    flex-shrink: 0;
 }
-.product-card-add:hover {
+.product-card-add .add-icon:hover {
     background: #059669;
     color: #fff;
     transform: scale(1.1);
 }
-.product-card-add.has-qty {
-    width: auto;
-    border-radius: 20px;
-    padding: 0 6px;
-    gap: 4px;
-    background: #059669;
-    color: #fff;
-    border-color: #059669;
-}
 .product-card-add .add-qty {
-    font-size: 0.7rem;
-    font-weight: 600;
-    min-width: 14px;
-    text-align: center;
+    display: none;
+    align-items: center;
+    gap: 3px;
 }
-.product-card-add .add-icon {
-    font-size: 1rem;
+.product-card-add .minus-btn {
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    background: #dc2626;
+    color: #fff;
+    font-size: 0.85rem;
     font-weight: 700;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.15s;
+    line-height: 1;
+    flex-shrink: 0;
 }
-.product-card-add.has-qty .add-icon {
-    font-size: 0.8rem;
+.product-card-add .minus-btn:hover {
+    background: #b91c1c;
+    transform: scale(1.1);
+}
+.product-card-add .qty-text {
+    font-size: 0.72rem;
+    font-weight: 700;
+    color: #fff;
+    background: #059669;
+    padding: 0 7px;
+    height: 20px;
+    line-height: 20px;
+    border-radius: 10px;
+    min-width: 18px;
+    text-align: center;
 }
 
 /* ===== Photo Toggle ===== */
@@ -392,9 +416,12 @@
                     <span class="product-card-name">{{ $product->name }}</span>
                     <strong class="product-card-price">Rp {{ number_format($product->price, 0, ',', '.') }}</strong>
                 </div>
-                <button class="product-card-add" onclick="event.stopPropagation(); addToCart(this)" title="Tambah">
-                    <span class="add-icon">+</span>
-                    <span class="add-qty" style="display:none"></span>
+                <button class="product-card-add" title="Tambah">
+                    <span class="add-icon" onclick="event.stopPropagation(); addToCart(this.parentElement)">+</span>
+                    <span class="add-qty" style="display:none">
+                        <span class="minus-btn" onclick="event.stopPropagation(); removeFromCart(this.parentElement.parentElement)">−</span>
+                        <span class="qty-text"></span>
+                    </span>
                 </button>
             </div>
             @empty
@@ -682,6 +709,26 @@ function addToCart(btn) {
             return;
         }
         cart.push({ id, name, price, stock, qty: 1 });
+        // Pindah card ke atas grid biar keliatan
+        var grid = document.getElementById('productGrid');
+        if (grid && card && card.nodeType === 1) grid.prepend(card);
+    }
+
+    updateProductBadge(btn, id);
+    updateCartFloat();
+}
+
+// ===== Remove from Cart (decrement/hapus) =====
+function removeFromCart(btn) {
+    var card = btn.closest('.product-card');
+    var id = card.dataset.id;
+    var existing = cart.find(function(i) { return i.id === id; });
+    if (!existing) return;
+
+    if (existing.qty > 1) {
+        existing.qty--;
+    } else {
+        cart = cart.filter(function(i) { return i.id !== id; });
     }
 
     updateProductBadge(btn, id);
@@ -689,19 +736,15 @@ function addToCart(btn) {
 }
 
 function updateProductBadge(btn, id) {
-    const item = cart.find(i => i.id === id);
-    const qtySpan = btn.querySelector('.add-qty');
-    const iconSpan = btn.querySelector('.add-icon');
+    var item = cart.find(function(i) { return i.id === id; });
+    var qtySpan = btn.querySelector('.add-qty');
+    var qtyText = btn.querySelector('.qty-text');
 
     if (item) {
-        btn.classList.add('has-qty');
-        qtySpan.style.display = 'inline';
-        qtySpan.textContent = item.qty;
-        iconSpan.textContent = '+';
+        qtySpan.style.display = 'inline-flex';
+        if (qtyText) qtyText.textContent = item.qty;
     } else {
-        btn.classList.remove('has-qty');
         qtySpan.style.display = 'none';
-        iconSpan.textContent = '+';
     }
 }
 
@@ -720,17 +763,17 @@ function updateCartFloat() {
 }
 
 function refreshAllBadges() {
-    document.querySelectorAll('.product-card-add').forEach(btn => {
-        const card = btn.closest('.product-card');
-        const id = card.dataset.id;
-        const item = cart.find(i => i.id === id);
+    document.querySelectorAll('.product-card-add').forEach(function(btn) {
+        var card = btn.closest('.product-card');
+        var id = card.dataset.id;
+        var item = cart.find(function(i) { return i.id === id; });
+        var qtySpan = btn.querySelector('.add-qty');
+        var qtyText = btn.querySelector('.qty-text');
         if (item) {
-            btn.classList.add('has-qty');
-            btn.querySelector('.add-qty').style.display = 'inline';
-            btn.querySelector('.add-qty').textContent = item.qty;
+            qtySpan.style.display = 'inline-flex';
+            if (qtyText) qtyText.textContent = item.qty;
         } else {
-            btn.classList.remove('has-qty');
-            btn.querySelector('.add-qty').style.display = 'none';
+            qtySpan.style.display = 'none';
         }
     });
 }
@@ -741,38 +784,97 @@ function renderCartReview() {
     const footer = document.getElementById('cartFooter');
     const emptyMsg = document.getElementById('emptyCartMsg');
 
+    if (!body) return;
+
+    body.innerHTML = '';
+
     if (cart.length === 0) {
-        body.innerHTML = '';
-        body.appendChild(emptyMsg);
-        emptyMsg.style.display = '';
-        footer.style.display = 'none';
+        if (emptyMsg) {
+            body.appendChild(emptyMsg);
+            emptyMsg.style.display = '';
+        }
+        if (footer) footer.style.display = 'none';
         return;
     }
 
-    emptyMsg.style.display = 'none';
-    footer.style.display = '';
+    if (emptyMsg) emptyMsg.style.display = 'none';
+    if (footer) footer.style.display = '';
 
-    let html = '';
-    cart.forEach((item, idx) => {
-        html += `
-            <div class="cart-review-item">
-                <div class="cart-review-info">
-                    <div class="cart-review-name">${item.name}</div>
-                    <div class="cart-review-price">Rp ${item.price.toLocaleString('id-ID')}</div>
-                </div>
-                <div class="cart-review-qty">
-                    <button class="btn btn-outline-secondary" onclick="reviewUpdateQty(${idx}, -1)">−</button>
-                    <span>${item.qty}</span>
-                    <button class="btn btn-outline-secondary" onclick="reviewUpdateQty(${idx}, 1)">+</button>
-                </div>
-                <div class="cart-review-subtotal">Rp ${(item.price * item.qty).toLocaleString('id-ID')}</div>
-                <button class="cart-review-remove" onclick="reviewRemoveItem(${idx})">&times;</button>
-            </div>
-        `;
+    var fragment = document.createDocumentFragment();
+
+    cart.forEach(function(item, idx) {
+        var div = document.createElement('div');
+        div.className = 'cart-review-item';
+
+        // info
+        var info = document.createElement('div');
+        info.className = 'cart-review-info';
+        var nameDiv = document.createElement('div');
+        nameDiv.className = 'cart-review-name';
+        nameDiv.textContent = item.name;
+        var priceDiv = document.createElement('div');
+        priceDiv.className = 'cart-review-price';
+        priceDiv.textContent = 'Rp ' + Number(item.price).toLocaleString('id-ID');
+        info.appendChild(nameDiv);
+        info.appendChild(priceDiv);
+
+        // qty controls
+        var qtyDiv = document.createElement('div');
+        qtyDiv.className = 'cart-review-qty';
+        var minusBtn = document.createElement('button');
+        minusBtn.className = 'btn btn-outline-secondary review-qty-btn';
+        minusBtn.dataset.idx = idx;
+        minusBtn.dataset.delta = '-1';
+        minusBtn.textContent = '\u2212';
+        var qtySpan = document.createElement('span');
+        qtySpan.textContent = item.qty;
+        var plusBtn = document.createElement('button');
+        plusBtn.className = 'btn btn-outline-secondary review-qty-btn';
+        plusBtn.dataset.idx = idx;
+        plusBtn.dataset.delta = '1';
+        plusBtn.textContent = '+';
+        qtyDiv.appendChild(minusBtn);
+        qtyDiv.appendChild(qtySpan);
+        qtyDiv.appendChild(plusBtn);
+
+        // subtotal
+        var subDiv = document.createElement('div');
+        subDiv.className = 'cart-review-subtotal';
+        subDiv.textContent = 'Rp ' + Number(item.price * item.qty).toLocaleString('id-ID');
+
+        // remove button
+        var removeBtn = document.createElement('button');
+        removeBtn.className = 'cart-review-remove';
+        removeBtn.dataset.idx = idx;
+        removeBtn.innerHTML = '&times;';
+
+        div.appendChild(info);
+        div.appendChild(qtyDiv);
+        div.appendChild(subDiv);
+        div.appendChild(removeBtn);
+        fragment.appendChild(div);
     });
-    body.innerHTML = html;
+
+    body.appendChild(fragment);
     updateReviewTotals();
 }
+
+// ===== Cart Review Event Delegation =====
+document.getElementById('cartReviewBody').addEventListener('click', function(e) {
+    var target = e.target.closest('button');
+    if (!target) return;
+
+    var idx = target.dataset.idx;
+    if (idx === undefined) return;
+    idx = parseInt(idx);
+
+    if (target.classList.contains('review-qty-btn')) {
+        var delta = parseInt(target.dataset.delta);
+        reviewUpdateQty(idx, delta);
+    } else if (target.classList.contains('cart-review-remove')) {
+        reviewRemoveItem(idx);
+    }
+});
 
 function reviewUpdateQty(idx, delta) {
     const item = cart[idx];
