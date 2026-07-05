@@ -319,7 +319,7 @@
     .product-card-name { font-size: 0.65rem; }
     .product-card-price { font-size: 0.7rem; }
     .product-card-sku { display: none; }
-    .product-card-add { width: 22px; height: 22px; font-size: 0.8rem; bottom: 2px; right: 2px; }
+    .product-card-add { font-size: 0.8rem; bottom: 2px; right: 2px; }
     .pos-products.hide-photos .product-card-body { padding: 0.45rem 0.3rem; }
     .pos-products.hide-photos .product-card-name { font-size: 0.75rem; }
     .cart-float { padding: 0.4rem 0.6rem; }
@@ -342,7 +342,7 @@
     .product-card-body { padding: 0.25rem 0.2rem; }
     .product-card-name { font-size: 0.6rem; }
     .product-card-price { font-size: 0.65rem; }
-    .product-card-add { width: 20px; height: 20px; font-size: 0.7rem; }
+    .product-card-add { font-size: 0.7rem; }
     .pos-step-body { padding: 0.4rem; }
     .cart-review-item { padding: 0.4rem; }
     .cart-review-name { font-size: 0.72rem; }
@@ -395,7 +395,7 @@
             @endforeach
         </div>
 
-        <div class="pos-products" id="productGrid" style="flex:1;min-height:0;overflow-y:auto;display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:0.6rem;padding:0.75rem;align-content:start;">
+        <div class="pos-products" id="productGrid">
             @forelse($products ?? [] as $product)
             <div class="product-card" tabindex="0" role="button"
                  data-id="{{ $product->id }}"
