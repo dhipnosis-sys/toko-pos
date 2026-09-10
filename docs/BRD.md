@@ -55,7 +55,7 @@ Sasaran jangka panjang: **satu sumber data (single source of truth)** untuk penj
 | M-10 | BOM & Produksi | Resep barang jadi, perencanaan produksi, pemakaian bahan, terapkan HPP |
 | M-11 | Laporan | Omzet (hari/bulan/30 hari), grafik, metode pembayaran, produk terlaris, hutang–piutang |
 | M-12 | Pengaturan & Pengguna | Identitas toko (struk), tarif pajak, manajemen pengguna & peran |
-| M-13 | Penjualan Digital | Token listrik, tagihan pascabayar, penarikan Dana & layanan lain; jenis extensible, biaya admin, saldo modal per jenis (top-up Owner), keuntungan = admin − modal |
+| M-13 | Penjualan Digital | Token listrik, tagihan pascabayar, penarikan Dana & layanan lain; jenis extensible, biaya admin, **satu saldo modal gabung** (top-up Owner), transaksi dicatat bersama barang di POS (satu invoice), keuntungan = admin − modal |
 
 ---
 
@@ -150,11 +150,11 @@ Aturan: **pengguna pertama** yang terdaftar otomatis menjadi **Owner**; pengguna
 - **FR-48** Kamu tidak dapat menghapus akun sendiri.
 
 ### M-13 Penjualan Digital
-- **FR-53** Katalog **jenis layanan extensible** (Token Listrik PLN, PLN Pascabayar, Penarikan Dana sebagai contoh); Owner dapat tambah/edit/aktif-nonaktifkan jenis (`digital_types`).
-- **FR-54** Setiap jenis punya **saldo modal** sendiri; Owner melakukan **top-up modal** (tercatat di buku kas `digital_balance_movements`).
-- **FR-55** Catat transaksi digital (Owner & Kasir): jenis, nomor/ID pelanggan, nominal, **biaya admin**, **biaya modal**, metode bayar, catatan → auto invoice `DIG-...`.
-- **FR-56** Perbedaan per jenis: **memotong saldo modal** (token, pascabayar) vs **tidak memotong** (cashout) lewat flag `reduces_balance`.
-- **FR-57** Halaman Digital: stat omzet & keuntungan admin (hari/bulan), ringkasan saldo per jenis, filter jenis pada riwayat.
+- **FR-53** Katalog **jenis layanan extensible** (Token Listrik PLN, PLN Pascabayar, Penarikan Dana sebagai contoh); Owner dapat tambah/aktif-nonaktifkan jenis (`digital_types`).
+- **FR-54** **Satu saldo modal gabung** untuk semua jenis (`digital_modal`); Owner melakukan **top-up modal** (tercatat di buku kas `digital_balance_movements`).
+- **FR-55** Transaksi digital dicatat **di POS** bersama barang fisik dalam **satu invoice** (`sales` + `digital_sales`): jenis, nomor/ID pelanggan, nominal, **biaya admin**, **biaya modal**; satu pembayaran untuk seluruh transaksi. Transaksi tanya barang pun diperbolehkan.
+- **FR-56** Perbedaan per jenis: **memotong saldo modal gabung** (token, pascabayar) vs **tidak memotong** (cashout) lewat flag `reduces_balance`.
+- **FR-57** Halaman Digital: stat omzet & keuntungan admin (hari/bulan), ringkasan **saldo modal gabung** (top-up Owner), kelola jenis, filter jenis pada riwayat (termuat invoice dari transaksi POS).
 
 ---
 
@@ -178,9 +178,9 @@ Aturan: **pengguna pertama** yang terdaftar otomatis menjadi **Owner**; pengguna
 | BR-14 | HPP produk juga bisa dihitung dari order produksi (bukan hanya pembelian). Urutan: harga beli rata-rata untuk produk beli; cost produksi untuk barang jadi. |
 | BR-15 | **Nomor telepon pelanggan bersifat unik** (index parsial; boleh kosong) — nama boleh sama antar orang, dibedakan lewat telepon/kota/alamat & tampilan dropdown. |
 | BR-16 | **Pelunasan piutang boleh sebagian**; saldo tidak boleh negatif; hanya peran **owner & cashier** yang mencatat. |
-| BR-17 | Transaksi digital: **keuntungan = biaya admin − biaya modal**; total ditagih ke pelanggan = nominal + biaya admin. |
-| BR-18 | Transaksi digital jenis `reduces_balance` memotong **saldo modal** per jenis sebesar biaya modal; **diblokir bila saldo tidak cukup**; jenis cashout tidak memotong saldo. |
-| BR-19 | **Top-up saldo modal** dan **kelola jenis digital** hanya Owner (RPC security definer); pencatatan transaksi oleh Owner & Kasir. |
+| BR-17 | Transaksi digital: **keuntungan = biaya admin − biaya modal**; total ditagih ke pelanggan = nominal + biaya admin; digabung ke subtotal invoice POS (diskon berlaku atas total gabungan). |
+| BR-18 | Jenis `reduces_balance` memotong **saldo modal gabung** (`digital_modal`) sebesar biaya modal; transaksi **diblokir bila saldo tidak cukup**; jenis cashout tidak memotong saldo. |
+| BR-19 | **Top-up modal** dan **kelola jenis digital** hanya Owner (RPC security definer); pencatatan transaksi (produk + digital) oleh Owner & Kasir via POS. |
 
 ---
 
@@ -276,3 +276,4 @@ Prioritas yang disarankan:
 | 2026-09-10 | v1.1 | **Tambah pelanggan cepat dari POS** + **pembeda nama pelanggan** (nomor telepon unik, tampilan dropdown) — FR-51/FR-52, BR-15. | `supabase/migrations/customer_debt_payment.sql`; POSClient, actions/customers.ts |
 | 2026-09-10 | v1.1 | Logo toko di halaman login/register, sidebar (desktop & mobile), dan favicon tab browser. | `web/public/logo-transparan2.webp`; `web/src/app/(app)/components/Sidebar.tsx` |
 | 2026-09-10 | v1.1 | **Modul Penjualan Digital (M-13)**: jenis extensible + saldo modal per jenis (top-up Owner) + pencatatan transaksi (admin & modal) — FR-53..FR-57, BR-17..BR-19. | `supabase/migrations/digital_sales.sql`; `web/src/app/(app)/digital/`; `web/src/app/actions/digital.ts` |
+| 2026-09-10 | v1.2 | **Penjualan Digital terintegrasi POS**: saldo modal gabung (`digital_modal`), transaksi digital masuk keranjang POS & satu invoice dengan barang (barang digital bisa jadi satu-satunya isi), halaman Digital disederhanakan (modal gabung, kelola jenis, riwayat dgn invoice). | `supabase/migrations/digital_sales_v2.sql`; `web/src/components/pos/POSClient.tsx`; `web/src/app/(app)/digital/` |

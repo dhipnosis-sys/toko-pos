@@ -13,11 +13,18 @@ export default async function SaleDetailPage(props: PageProps<"/sales/[id]">) {
   if (Number.isNaN(saleId)) notFound();
 
   const supabase = await createClient();
-  const { data: sale } = await supabase
-    .from("sales")
-    .select("*, customer:customers(name, phone), profile:profiles(name), items:sale_items(*, product:products(name, unit))")
-    .eq("id", saleId)
-    .single();
+  const [{ data: sale }, { data: digitalSales }] = await Promise.all([
+    supabase
+      .from("sales")
+      .select("*, customer:customers(name, phone), profile:profiles(name), items:sale_items(*, product:products(name, unit))")
+      .eq("id", saleId)
+      .single(),
+    supabase
+      .from("digital_sales")
+      .select("id, customer_identifier, amount, admin_fee, cost, profit, total_charged, digital_type:digital_types(name)")
+      .eq("sale_id", saleId)
+      .order("id"),
+  ]);
   if (!sale) notFound();
 
   return (
@@ -64,7 +71,7 @@ export default async function SaleDetailPage(props: PageProps<"/sales/[id]">) {
       </div>
 
       <Card>
-        <CardHeader title="Item Penjualan" subtitle={String((sale.items || []).length) + " produk"} />
+        <CardHeader title="Item Penjualan" subtitle={String((sale.items || []).length) + " produk" + ((digitalSales || []).length ? " + " + (digitalSales || []).length + " layanan digital" : "")} />
         <Table>
           <THead>
             <Th>Produk</Th>
@@ -86,6 +93,17 @@ export default async function SaleDetailPage(props: PageProps<"/sales/[id]">) {
                 <Td right>{rupiah(it.subtotal)}</Td>
               </tr>
             ))}
+            {(digitalSales || []).map((d: any) => (
+              <tr key={"d" + d.id}>
+                <Td>
+                  <span className="font-medium text-amber-700">{d.digital_type?.name || "Digital"}</span>
+                  <span className="ml-2 text-xs text-gray-400">{d.customer_identifier}</span>
+                </Td>
+                <Td right>{rupiah(d.amount + d.admin_fee)}</Td>
+                <Td right>-</Td>
+                <Td right>{rupiah(d.total_charged)}</Td>
+              </tr>
+            ))}
           </tbody>
         </Table>
         <div className="px-5 py-4 space-y-1.5 bg-gray-50 border-t border-gray-100">
@@ -103,6 +121,16 @@ export default async function SaleDetailPage(props: PageProps<"/sales/[id]">) {
             <div className="flex justify-between text-sm text-gray-600">
               <span>Pajak</span>
               <span>{rupiah(sale.tax)}</span>
+            </div>
+          )}
+          {(digitalSales || []).length > 0 && (
+            <div className="flex justify-between text-sm text-gray-600">
+              <span>Layanan Digital</span>
+              <span>
+                {rupiah(
+                  (digitalSales as any[]).reduce((a: number, d: any) => a + Number(d.total_charged || 0), 0)
+                )}
+              </span>
             </div>
           )}
           <div className="flex justify-between text-base font-bold text-gray-900">

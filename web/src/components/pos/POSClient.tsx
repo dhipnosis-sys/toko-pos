@@ -1,7 +1,7 @@
 "use client";
 
-import { useMemo, useState } from "react";
-import { Plus, Minus, Trash2, Search, ScanBarcode, CreditCard, ArrowRight, Check } from "lucide-react";
+import { useMemo, useRef, useState } from "react";
+import { Plus, Minus, Trash2, Search, ScanBarcode, CreditCard, ArrowRight, Check, Zap } from "lucide-react";
 import type { ProductUnit } from "@/lib/types";
 import { rupiah, paymentMethodLabels, unitLabels } from "@/lib/utils";
 import { Card, btn } from "@/components/ui";
@@ -22,9 +22,16 @@ type PosProduct = {
   reseller_price: number;
 };
 
+export type PosDigitalType = {
+  id: number;
+  name: string;
+  reduces_balance: boolean;
+};
+
 type Tier = "retail" | "wholesale" | "reseller";
 
-type CartItem = {
+type CartProduct = {
+  kind: "product";
   product_id: number;
   name: string;
   unit: ProductUnit;
@@ -32,6 +39,20 @@ type CartItem = {
   qty: number;
   stock: number;
 };
+
+type CartDigital = {
+  kind: "digital";
+  key: string;
+  type_id: number;
+  type_name: string;
+  reduces_balance: boolean;
+  identifier: string;
+  amount: number;
+  admin_fee: number;
+  cost: number;
+};
+
+type CartItem = CartProduct | CartDigital;
 
 const tierLabels: Record<Tier, string> = {
   retail: "Retail",
@@ -49,6 +70,8 @@ export default function POSClient({
   products,
   customers,
   profileName,
+  digitalTypes,
+  digitalModalBalance,
 }: {
   products: PosProduct[];
   customers: {
@@ -59,6 +82,8 @@ export default function POSClient({
     address?: string | null;
   }[];
   profileName: string;
+  digitalTypes: PosDigitalType[];
+  digitalModalBalance: number;
 }) {
   const [step, setStep] = useState<"items" | "cart" | "payment">("items");
   const [search, setSearch] = useState("");
@@ -80,6 +105,13 @@ export default function POSClient({
   const [pending, setPending] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
 
+  const [digitalFormOpen, setDigitalFormOpen] = useState<number | null>(null);
+  const [digIdentifier, setDigIdentifier] = useState("");
+  const [digAmount, setDigAmount] = useState("");
+  const [digAdmin, setDigAdmin] = useState("");
+  const [digCost, setDigCost] = useState("");
+  const digCounter = useRef(0);
+
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
     if (!q) return products;
@@ -97,7 +129,9 @@ export default function POSClient({
 
   function addToCart(p: PosProduct) {
     setErrorMsg("");
-    const existing = cart.find((c) => c.product_id === p.id);
+    const existing = cart.find((c) => c.kind === "product" && c.product_id === p.id) as
+      | CartProduct
+      | undefined;
     if (existing && existing.qty >= p.stock) {
       setErrorMsg("Stok tidak cukup untuk " + p.name);
       return;
@@ -107,15 +141,25 @@ export default function POSClient({
       return;
     }
     setCart((prev) => {
-      const found = prev.find((c) => c.product_id === p.id);
+      const found = prev.find((c) => c.kind === "product" && c.product_id === p.id);
       if (found) {
         return prev.map((c) =>
-          c.product_id === p.id ? { ...c, qty: Math.min(c.qty + 1, p.stock) } : c
+          c.kind === "product" && c.product_id === p.id
+            ? { ...c, qty: Math.min(c.qty + 1, p.stock) }
+            : c
         );
       }
       return [
         ...prev,
-        { product_id: p.id, name: p.name, unit: p.unit, price: priceOf(p), qty: 1, stock: p.stock },
+        {
+          kind: "product" as const,
+          product_id: p.id,
+          name: p.name,
+          unit: p.unit,
+          price: priceOf(p),
+          qty: 1,
+          stock: p.stock,
+        },
       ];
     });
   }
@@ -124,16 +168,65 @@ export default function POSClient({
     setCart((prev) =>
       prev
         .map((c) =>
-          c.product_id === productId
+          c.kind === "product" && c.product_id === productId
             ? { ...c, qty: Math.min(Math.max(c.qty + delta, 1), c.stock) }
             : c
         )
-        .filter((c) => c.qty > 0)
+        .filter((c) => (c.kind === "product" ? c.qty > 0 : true))
     );
   }
 
-  function removeItem(productId: number) {
-    setCart((prev) => prev.filter((c) => c.product_id !== productId));
+  function removeItem(key: string) {
+    setCart((prev) =>
+      prev.filter((c) =>
+        c.kind === "product" ? String(c.product_id) !== key : c.key !== key
+      )
+    );
+  }
+
+  function openDigitalForm(t: PosDigitalType) {
+    setErrorMsg("");
+    setDigitalFormOpen(t.id);
+    setDigIdentifier("");
+    setDigAmount("");
+    setDigAdmin("");
+    setDigCost("");
+  }
+
+  function addDigitalToCart(t: PosDigitalType) {
+    const identifier = digIdentifier.trim();
+    const amount = Math.max(0, Math.round(Number(digAmount) || 0));
+    const admin = Math.max(0, Math.round(Number(digAdmin) || 0));
+    const cost = Math.max(0, Math.round(Number(digCost) || 0));
+    if (!identifier) {
+      setErrorMsg("Nomor / ID pelanggan wajib diisi");
+      return;
+    }
+    if (t.reduces_balance && cost > digitalModalBalance) {
+      setErrorMsg(
+        "Saldo modal tidak cukup. Saldo: " +
+          rupiah(digitalModalBalance) +
+          ", biaya: " +
+          rupiah(cost)
+      );
+      return;
+    }
+    digCounter.current += 1;
+    setCart((prev) => [
+      ...prev,
+      {
+        kind: "digital" as const,
+        key: "d" + digCounter.current,
+        type_id: t.id,
+        type_name: t.name,
+        reduces_balance: t.reduces_balance,
+        identifier,
+        amount,
+        admin_fee: admin,
+        cost,
+      },
+    ]);
+    setDigitalFormOpen(null);
   }
 
   function handleScan(code: string) {
@@ -156,6 +249,7 @@ export default function POSClient({
     setDiscount("0");
     setNotes("");
     setErrorMsg("");
+    setDigitalFormOpen(null);
   }
 
   function customerLabel(c: {
@@ -207,7 +301,16 @@ export default function POSClient({
     setShowAddCustomer(false);
   }
 
-  const subtotal = cart.reduce((a, c) => a + c.price * c.qty, 0);
+  const productSubtotal = cart.reduce(
+    (a, c) => a + (c.kind === "product" ? c.price * c.qty : 0),
+    0
+  );
+  const digitalTotal = cart.reduce(
+    (a, c) =>
+      a + (c.kind === "digital" ? c.amount + c.admin_fee : 0),
+    0
+  );
+  const subtotal = productSubtotal + digitalTotal;
   const discountNum = Math.min(subtotal, Math.max(0, Number(discount) || 0));
   const total = subtotal - discountNum;
   const paidNum = method === "receivable" ? 0 : Math.max(0, Number(paidAmount) || 0);
@@ -222,12 +325,25 @@ export default function POSClient({
     setPending(true);
     setErrorMsg("");
     const fd = new FormData();
-    fd.set("item_count", String(cart.length));
-    cart.forEach((c, i) => {
+
+    const productRows = cart.filter((c) => c.kind === "product") as CartProduct[];
+    fd.set("item_count", String(productRows.length));
+    productRows.forEach((c, i) => {
       fd.set(`items[${i}].product_id`, String(c.product_id));
       fd.set(`items[${i}].quantity`, String(c.qty));
       fd.set(`items[${i}].price`, String(c.price));
     });
+
+    const digitalRows = cart.filter((c) => c.kind === "digital") as CartDigital[];
+    fd.set("digital_count", String(digitalRows.length));
+    digitalRows.forEach((c, i) => {
+      fd.set(`digital[${i}].type_id`, String(c.type_id));
+      fd.set(`digital[${i}].identifier`, c.identifier);
+      fd.set(`digital[${i}].amount`, String(c.amount));
+      fd.set(`digital[${i}].admin_fee`, String(c.admin_fee));
+      fd.set(`digital[${i}].cost`, String(c.cost));
+    });
+
     if (customerId) fd.set("customer_id", customerId);
     fd.set("payment_method", method);
     fd.set("paid_amount", String(paidNum));
@@ -337,6 +453,100 @@ export default function POSClient({
             );
           })}
         </div>
+
+        {digitalTypes.length > 0 && (
+          <Card>
+            <div className="p-4">
+              <div className="flex items-center justify-between mb-3">
+                <p className="text-sm font-semibold text-gray-900 flex items-center gap-1.5">
+                  <Zap size={15} className="text-amber-500" /> Layanan Digital
+                </p>
+                <p className="text-xs text-gray-400">
+                  Saldo modal:{" "}
+                  <span className="font-semibold text-emerald-600">
+                    {rupiah(digitalModalBalance)}
+                  </span>
+                </p>
+              </div>
+              <div className="space-y-2">
+                {digitalTypes.map((t) => (
+                  <div key={t.id} className="rounded-xl border border-gray-200 bg-white p-3">
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="min-w-0">
+                        <p className="text-sm font-semibold text-gray-900">{t.name}</p>
+                        <p className="text-[11px] text-gray-400">
+                          {t.reduces_balance
+                            ? "Mengurangi saldo modal"
+                            : "Tanpa saldo modal"}
+                        </p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => openDigitalForm(t)}
+                        className="inline-flex shrink-0 items-center gap-1 rounded-lg bg-amber-100 px-2.5 py-1.5 text-xs font-medium text-amber-700 hover:bg-amber-200"
+                      >
+                        <Plus size={13} /> Isi Form
+                      </button>
+                    </div>
+
+                    {digitalFormOpen === t.id && (
+                      <div className="mt-3 space-y-2 border-t border-gray-100 pt-3">
+                        <input
+                          value={digIdentifier}
+                          onChange={(e) => setDigIdentifier(e.target.value)}
+                          placeholder="Nomor / ID pelanggan (No. Meter / No. Tujuan) *"
+                          className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                        />
+                        <div className="grid grid-cols-3 gap-2">
+                          <input
+                            type="number"
+                            min={0}
+                            value={digAmount}
+                            onChange={(e) => setDigAmount(e.target.value)}
+                            placeholder="Nominal"
+                            className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                          />
+                          <input
+                            type="number"
+                            min={0}
+                            value={digAdmin}
+                            onChange={(e) => setDigAdmin(e.target.value)}
+                            placeholder="Biaya Admin"
+                            className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                          />
+                          <input
+                            type="number"
+                            min={0}
+                            value={digCost}
+                            onChange={(e) => setDigCost(e.target.value)}
+                            placeholder="Biaya Modal"
+                            className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                          />
+                        </div>
+                        <div className="flex gap-2">
+                          <button
+                            type="button"
+                            onClick={() => addDigitalToCart(t)}
+                            className="rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-emerald-700"
+                          >
+                            Tambah ke Keranjang
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setDigitalFormOpen(null)}
+                            className="rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-xs font-medium text-gray-600 hover:bg-gray-50"
+                          >
+                            Batal
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+          </Card>
+        )}
       </div>
 
       {/* Right column: summary / cart / payment */}
@@ -360,42 +570,76 @@ export default function POSClient({
 
           {step === "cart" ? (
             <div className="max-h-[340px] space-y-2 overflow-y-auto pr-1">
-              {cart.map((c) => (
-                <div key={c.product_id} className="rounded-lg border border-gray-100 p-2.5">
-                  <div className="flex items-start justify-between gap-2">
-                    <p className="text-sm font-medium text-gray-900">{c.name}</p>
-                    <button type="button" onClick={() => removeItem(c.product_id)} className="text-gray-300 hover:text-red-500">
-                      <Trash2 size={15} />
-                    </button>
-                  </div>
-                  <div className="mt-2 flex items-center justify-between">
-                    <div className="flex items-center gap-2">
+              {cart.map((c) =>
+                c.kind === "product" ? (
+                  <div key={"p" + c.product_id} className="rounded-lg border border-gray-100 p-2.5">
+                    <div className="flex items-start justify-between gap-2">
+                      <p className="text-sm font-medium text-gray-900">{c.name}</p>
                       <button
                         type="button"
-                        onClick={() => changeQty(c.product_id, -1)}
-                        className="rounded border border-gray-200 p-1 hover:bg-gray-100"
+                        onClick={() => removeItem(String(c.product_id))}
+                        className="text-gray-300 hover:text-red-500"
                       >
-                        <Minus size={13} />
-                      </button>
-                      <span className="w-8 text-center text-sm font-semibold">{c.qty}</span>
-                      <button
-                        type="button"
-                        onClick={() => changeQty(c.product_id, 1)}
-                        disabled={c.qty >= c.stock}
-                        className="rounded border border-gray-200 p-1 hover:bg-gray-100 disabled:opacity-40"
-                      >
-                        <Plus size={13} />
+                        <Trash2 size={15} />
                       </button>
                     </div>
-                    <p className="text-sm font-bold text-gray-900">
-                      {rupiah(c.price * c.qty)}
-                      <span className="ml-1 text-[10px] font-normal text-gray-400">
-                        @{rupiah(c.price)}
-                      </span>
-                    </p>
+                    <div className="mt-2 flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <button
+                          type="button"
+                          onClick={() => changeQty(c.product_id, -1)}
+                          className="rounded border border-gray-200 p-1 hover:bg-gray-100"
+                        >
+                          <Minus size={13} />
+                        </button>
+                        <span className="w-8 text-center text-sm font-semibold">{c.qty}</span>
+                        <button
+                          type="button"
+                          onClick={() => changeQty(c.product_id, 1)}
+                          disabled={c.qty >= c.stock}
+                          className="rounded border border-gray-200 p-1 hover:bg-gray-100 disabled:opacity-40"
+                        >
+                          <Plus size={13} />
+                        </button>
+                      </div>
+                      <p className="text-sm font-bold text-gray-900">
+                        {rupiah(c.price * c.qty)}
+                        <span className="ml-1 text-[10px] font-normal text-gray-400">
+                          @{rupiah(c.price)}
+                        </span>
+                      </p>
+                    </div>
                   </div>
-                </div>
-              ))}
+                ) : (
+                  <div key={c.key} className="rounded-lg border border-amber-200 bg-amber-50/60 p-2.5">
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="min-w-0">
+                        <p className="text-sm font-medium text-gray-900">
+                          <Zap size={12} className="inline text-amber-500 mr-1" />
+                          {c.type_name}
+                        </p>
+                        <p className="text-xs text-gray-500 truncate">{c.identifier}</p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => removeItem(c.key)}
+                        className="text-gray-300 hover:text-red-500"
+                      >
+                        <Trash2 size={15} />
+                      </button>
+                    </div>
+                    <div className="mt-1 flex items-center justify-between text-xs text-gray-500">
+                      <span>
+                        Nominal {rupiah(c.amount)} · Admin {rupiah(c.admin_fee)} · Modal{" "}
+                        {rupiah(c.cost)}
+                      </span>
+                      <span className="text-sm font-bold text-gray-900">
+                        {rupiah(c.amount + c.admin_fee)}
+                      </span>
+                    </div>
+                  </div>
+                )
+              )}
             </div>
           ) : step === "payment" ? (
             <div className="space-y-3">
@@ -517,9 +761,7 @@ export default function POSClient({
                       <button
                         key={v}
                         type="button"
-                        onClick={() =>
-                          setPaidAmount(String(Math.max(v, paidNum)))
-                        }
+                        onClick={() => setPaidAmount(String(Math.max(v, paidNum)))}
                         className="rounded border border-gray-200 px-2 py-0.5 text-[11px] text-gray-600 hover:bg-gray-100"
                       >
                         {v ? rupiah(v) : "Tdk"}
@@ -539,17 +781,30 @@ export default function POSClient({
               {cart.length === 0 ? (
                 <p className="py-10 text-center text-sm text-gray-400">Keranjang kosong</p>
               ) : (
-                cart.map((c) => (
-                  <div key={c.product_id} className="flex items-center justify-between py-1.5">
-                    <div className="min-w-0">
-                      <p className="truncate text-sm text-gray-800">
-                        {c.name} <span className="text-gray-400">×{c.qty}</span>
-                      </p>
-                      <p className="text-[11px] text-gray-400">@{rupiah(c.price)}</p>
+                cart.map((c) =>
+                  c.kind === "product" ? (
+                    <div key={"p" + c.product_id} className="flex items-center justify-between py-1.5">
+                      <div className="min-w-0">
+                        <p className="truncate text-sm text-gray-800">
+                          {c.name} <span className="text-gray-400">×{c.qty}</span>
+                        </p>
+                        <p className="text-[11px] text-gray-400">@{rupiah(c.price)}</p>
+                      </div>
+                      <p className="text-sm font-semibold">{rupiah(c.price * c.qty)}</p>
                     </div>
-                    <p className="text-sm font-semibold">{rupiah(c.price * c.qty)}</p>
-                  </div>
-                ))
+                  ) : (
+                    <div key={c.key} className="flex items-center justify-between py-1.5">
+                      <div className="min-w-0">
+                        <p className="truncate text-sm text-gray-800">
+                          <Zap size={12} className="inline text-amber-500 mr-1" />
+                          {c.type_name}
+                        </p>
+                        <p className="text-[11px] text-gray-400 truncate">{c.identifier}</p>
+                      </div>
+                      <p className="text-sm font-semibold">{rupiah(c.amount + c.admin_fee)}</p>
+                    </div>
+                  )
+                )
               )}
             </div>
           )}
@@ -559,6 +814,12 @@ export default function POSClient({
               <span>Subtotal</span>
               <span>{rupiah(subtotal)}</span>
             </div>
+            {digitalTotal > 0 && (
+              <div className="flex justify-between text-xs text-gray-400">
+                <span>Termasuk layanan digital</span>
+                <span>{rupiah(digitalTotal)}</span>
+              </div>
+            )}
             <div className="flex justify-between text-sm text-gray-600">
               <span>Diskon</span>
               <span>-{rupiah(discountNum)}</span>

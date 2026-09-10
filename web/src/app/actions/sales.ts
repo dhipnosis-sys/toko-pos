@@ -19,7 +19,26 @@ export async function checkout(formData: FormData) {
     if (!productId || quantity < 1) continue;
     items.push({ product_id: productId, quantity, price });
   }
-  if (items.length === 0) redirect("/pos?err=items");
+
+  const digitalCount = Number(formData.get("digital_count") || 0);
+  const digital: {
+    type_id: number;
+    identifier: string;
+    amount: number;
+    admin_fee: number;
+    cost: number;
+  }[] = [];
+  for (let i = 0; i < digitalCount; i++) {
+    const typeId = Number(formData.get(`digital[${i}].type_id`) || 0);
+    const identifier = String(formData.get(`digital[${i}].identifier`) || "").trim();
+    const amount = Math.round(Number(formData.get(`digital[${i}].amount`) || 0) || 0);
+    const adminFee = Math.round(Number(formData.get(`digital[${i}].admin_fee`) || 0) || 0);
+    const cost = Math.round(Number(formData.get(`digital[${i}].cost`) || 0) || 0);
+    if (!typeId || !identifier) continue;
+    digital.push({ type_id: typeId, identifier, amount, admin_fee: adminFee, cost });
+  }
+
+  if (items.length === 0 && digital.length === 0) redirect("/pos?err=items");
 
   const customerRaw = String(formData.get("customer_id") || "");
   const customerId = customerRaw ? Number(customerRaw) : null;
@@ -34,7 +53,8 @@ export async function checkout(formData: FormData) {
 
   const { error } = await supabase.rpc("process_checkout", {
     p_user_id: profile.id,
-    p_items: items,
+    p_items: items.length ? items : null,
+    p_digital: digital.length ? digital : null,
     p_payment_method: paymentMethod,
     p_paid_amount: paidAmount,
     p_discount: discount,
@@ -48,5 +68,6 @@ export async function checkout(formData: FormData) {
   revalidatePath("/dashboard");
   revalidatePath("/products");
   revalidatePath("/customers");
+  revalidatePath("/digital");
   redirect("/sales?ok=saved");
 }

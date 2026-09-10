@@ -309,7 +309,6 @@ create table public.digital_types (
   id bigint generated always as identity primary key,
   name text not null unique,
   reduces_balance boolean not null default true,
-  balance bigint not null default 0,
   is_active boolean not null default true,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
@@ -330,9 +329,10 @@ on conflict (name) do nothing;
 -- -----------------------------------------------------------------------------
 create table public.digital_sales (
   id bigint generated always as identity primary key,
+  sale_id bigint references public.sales (id) on delete cascade,
   user_id uuid not null references public.profiles (id) on delete restrict,
   transaction_type_id bigint not null references public.digital_types (id) on delete restrict,
-  invoice_number text not null unique,
+  invoice_number text,
   customer_identifier text not null,
   amount bigint not null default 0,
   admin_fee bigint not null default 0,
@@ -348,6 +348,7 @@ create table public.digital_sales (
 
 create index digital_sales_user_idx on public.digital_sales (user_id);
 create index digital_sales_type_idx on public.digital_sales (transaction_type_id);
+create index digital_sales_sale_idx on public.digital_sales (sale_id);
 create index digital_sales_created_idx on public.digital_sales (created_at desc);
 
 create trigger digital_sales_updated_at
@@ -359,7 +360,7 @@ create trigger digital_sales_updated_at
 -- -----------------------------------------------------------------------------
 create table public.digital_balance_movements (
   id bigint generated always as identity primary key,
-  digital_type_id bigint not null references public.digital_types (id) on delete cascade,
+  digital_type_id bigint references public.digital_types (id) on delete set null,
   user_id uuid not null references public.profiles (id) on delete restrict,
   amount bigint not null default 0,
   balance_after bigint not null default 0,
@@ -368,6 +369,18 @@ create table public.digital_balance_movements (
 );
 
 create index digital_balance_movements_type_idx on public.digital_balance_movements (digital_type_id);
+
+-- -----------------------------------------------------------------------------
+-- digital_modal — single shared modal balance for all digital types (1 row)
+-- -----------------------------------------------------------------------------
+create table public.digital_modal (
+  id int primary key default 1 check (id = 1),
+  balance bigint not null default 0,
+  updated_at timestamptz not null default now()
+);
+
+insert into public.digital_modal (id, balance) values (1, 0)
+on conflict (id) do nothing;
 
 -- -----------------------------------------------------------------------------
 -- payments (polymorphic: payable_type in ('sale','supplier'))
@@ -544,6 +557,7 @@ alter table public.payments            enable row level security;
 alter table public.digital_types        enable row level security;
 alter table public.digital_sales        enable row level security;
 alter table public.digital_balance_movements enable row level security;
+alter table public.digital_modal           enable row level security;
 alter table public.settings            enable row level security;
 alter table public.bill_of_materials   enable row level security;
 alter table public.bill_of_material_items enable row level security;
@@ -707,6 +721,11 @@ drop policy if exists "digital_balance_movements_select_auth" on public.digital_
 create policy "digital_balance_movements_select_auth" on public.digital_balance_movements
   for select to authenticated using (true);
 
+-- digital_modal (reads for all; writes only via RPC) --------------------
+drop policy if exists "digital_modal_select_auth" on public.digital_modal;
+create policy "digital_modal_select_auth" on public.digital_modal
+  for select to authenticated using (true);
+
 drop policy if exists "settings_write" on public.settings;
 create policy "settings_write" on public.settings
   for all to authenticated
@@ -763,7 +782,8 @@ create policy "prod_items_write" on public.production_order_items
 -- =============================================================================
 
 -- -----------------------------------------------------------------------------
--- process_checkout — create sale + sale_items + payment + stock decrement
+-- process_checkout — create sale + sale_items + optional digital lines + payment + stock decrement
+-- Puts physical items AND digital services into ONE invoice (one sale).
 -- -----------------------------------------------------------------------------
 create or replace function public.process_checkout(
   p_user_id uuid,
@@ -772,61 +792,114 @@ create or replace function public.process_checkout(
   p_paid_amount bigint default 0,
   p_discount bigint default 0,
   p_customer_id bigint default null,
-  p_notes text default null
+  p_notes text default null,
+  p_digital jsonb default null
 ) returns jsonb
 language plpgsql security definer set search_path = public
 as $$
 declare
   v_item jsonb;
+  v_dig jsonb;
   v_product_id bigint;
   v_qty bigint;
   v_price bigint;
   v_cost bigint;
   v_stock bigint;
   v_subtotal bigint := 0;
+  v_digital_total bigint := 0;
+  v_total_all bigint;
   v_grand bigint;
   v_change bigint;
   v_invoice text;
   v_sale_id bigint;
+  v_type_id bigint;
+  v_identifier text;
+  v_amount bigint;
+  v_admin_fee bigint;
+  v_cost_dig bigint;
+  v_profit bigint;
+  v_charged bigint;
+  v_modal bigint;
+  v_reduces boolean;
   i int;
 begin
   if public.current_user_role() not in ('owner','cashier') then
     raise exception 'Unauthorized';
   end if;
-  if p_items is null or jsonb_array_length(p_items) = 0 then
+  if (p_items is null or jsonb_array_length(p_items) = 0)
+     and (p_digital is null or jsonb_array_length(p_digital) = 0) then
     raise exception 'Keranjang kosong';
   end if;
   if p_discount is null or p_discount < 0 then p_discount := 0; end if;
   if p_paid_amount is null or p_paid_amount < 0 then p_paid_amount := 0; end if;
 
-  for v_item in select * from jsonb_array_elements(p_items) loop
-    v_product_id := (v_item->>'product_id')::bigint;
-    v_qty := (v_item->>'quantity')::bigint;
-    if v_qty < 1 then raise exception 'Jumlah tidak valid'; end if;
-    select stock into v_stock from public.products where id = v_product_id;
-    if not found then raise exception 'Produk tidak ditemukan: %', v_product_id; end if;
-    if v_stock < v_qty then
-      raise exception 'Stok produk tidak cukup. Tersedia: %', v_stock;
-    end if;
-  end loop;
+  -- validate product stock
+  if p_items is not null then
+    for v_item in select * from jsonb_array_elements(p_items) loop
+      v_product_id := (v_item->>'product_id')::bigint;
+      v_qty := (v_item->>'quantity')::bigint;
+      if v_qty < 1 then raise exception 'Jumlah tidak valid'; end if;
+      select stock into v_stock from public.products where id = v_product_id;
+      if not found then raise exception 'Produk tidak ditemukan: %', v_product_id; end if;
+      if v_stock < v_qty then
+        raise exception 'Stok produk tidak cukup. Tersedia: %', v_stock;
+      end if;
+    end loop;
 
-  for v_item in select * from jsonb_array_elements(p_items) loop
-    v_product_id := (v_item->>'product_id')::bigint;
-    v_qty := (v_item->>'quantity')::bigint;
-    v_price := coalesce((v_item->>'price')::bigint, 0);
-    if v_qty < 0 or v_price < 0 then raise exception 'Data item tidak valid'; end if;
-    v_subtotal := v_subtotal + v_price * v_qty;
-  end loop;
+    for v_item in select * from jsonb_array_elements(p_items) loop
+      v_product_id := (v_item->>'product_id')::bigint;
+      v_qty := (v_item->>'quantity')::bigint;
+      v_price := coalesce((v_item->>'price')::bigint, 0);
+      if v_qty < 0 or v_price < 0 then raise exception 'Data item tidak valid'; end if;
+      v_subtotal := v_subtotal + v_price * v_qty;
+    end loop;
+  end if;
 
-  if p_discount > v_subtotal then p_discount := v_subtotal; end if;
-  v_grand := v_subtotal - p_discount;
+  -- validate digital lines & check shared modal
+  if p_digital is not null then
+    select balance into v_modal from public.digital_modal where id = 1;
+    if not found then v_modal := 0; end if;
+
+    for v_dig in select * from jsonb_array_elements(p_digital) loop
+      v_type_id := (v_dig->>'type_id')::bigint;
+      v_identifier := coalesce((v_dig->>'identifier')::text, '');
+      v_amount := coalesce((v_dig->>'amount')::bigint, 0);
+      v_admin_fee := coalesce((v_dig->>'admin_fee')::bigint, 0);
+      v_cost_dig := coalesce((v_dig->>'cost')::bigint, 0);
+      if trim(v_identifier) = '' then raise exception 'Nomor / ID pelanggan wajib diisi'; end if;
+      if v_amount < 0 or v_admin_fee < 0 or v_cost_dig < 0 then raise exception 'Data digital tidak valid'; end if;
+
+      select reduces_balance into v_reduces
+      from public.digital_types where id = v_type_id;
+      if not found then raise exception 'Jenis digital tidak ditemukan: %', v_type_id; end if;
+
+      v_charged := v_amount + v_admin_fee;
+      v_profit := v_admin_fee - v_cost_dig;
+      v_digital_total := v_digital_total + v_charged;
+
+      if v_reduces then
+        if v_modal < v_cost_dig then
+          raise exception 'Saldo modal tidak cukup. Saldo: %, dibutuhkan: %', v_modal, v_cost_dig;
+        end if;
+        v_modal := v_modal - v_cost_dig;
+        insert into public.digital_balance_movements (digital_type_id, user_id, amount, balance_after, notes)
+        values (v_type_id, p_user_id, -v_cost_dig, v_modal, 'Transaksi: ' || v_identifier);
+      end if;
+    end loop;
+
+    update public.digital_modal set balance = v_modal, updated_at = now() where id = 1;
+  end if;
+
+  v_total_all := v_subtotal + v_digital_total;
+  if p_discount > v_total_all then p_discount := v_total_all; end if;
+  v_grand := v_total_all - p_discount;
   v_change := greatest(0, p_paid_amount - v_grand);
 
   for i in 1..10 loop
     v_invoice := 'INV-' || to_char(now(),'YYYYMMDD') || '-' || upper(substr(md5(random()::text || clock_timestamp()::text),1,6));
     begin
       insert into public.sales (user_id, customer_id, invoice_number, subtotal, discount, tax, grand_total, paid_amount, change_amount, payment_method, status, notes)
-      values (p_user_id, p_customer_id, v_invoice, v_subtotal, p_discount, 0, v_grand, p_paid_amount, v_change, p_payment_method, 'completed', p_notes)
+      values (p_user_id, p_customer_id, v_invoice, v_total_all, p_discount, 0, v_grand, p_paid_amount, v_change, p_payment_method, 'completed', p_notes)
       returning id into v_sale_id;
       exit;
     exception when unique_violation then
@@ -835,16 +908,37 @@ begin
   end loop;
   if v_sale_id is null then raise exception 'Gagal membuat nomor invoice'; end if;
 
-  for v_item in select * from jsonb_array_elements(p_items) loop
-    v_product_id := (v_item->>'product_id')::bigint;
-    v_qty := (v_item->>'quantity')::bigint;
-    v_price := coalesce((v_item->>'price')::bigint, 0);
-    select cost_price into v_cost from public.products where id = v_product_id;
-    insert into public.sale_items (sale_id, product_id, quantity, unit_price, cost_price, subtotal)
-    values (v_sale_id, v_product_id, v_qty, v_price, coalesce(v_cost,0), v_price * v_qty);
-    update public.products set stock = stock - v_qty where id = v_product_id and stock >= v_qty;
-    if not found then raise exception 'Stok berubah saat transaksi'; end if;
-  end loop;
+  if p_items is not null then
+    for v_item in select * from jsonb_array_elements(p_items) loop
+      v_product_id := (v_item->>'product_id')::bigint;
+      v_qty := (v_item->>'quantity')::bigint;
+      v_price := coalesce((v_item->>'price')::bigint, 0);
+      select cost_price into v_cost from public.products where id = v_product_id;
+      insert into public.sale_items (sale_id, product_id, quantity, unit_price, cost_price, subtotal)
+      values (v_sale_id, v_product_id, v_qty, v_price, coalesce(v_cost,0), v_price * v_qty);
+      update public.products set stock = stock - v_qty where id = v_product_id and stock >= v_qty;
+      if not found then raise exception 'Stok berubah saat transaksi'; end if;
+    end loop;
+  end if;
+
+  if p_digital is not null then
+    for v_dig in select * from jsonb_array_elements(p_digital) loop
+      v_type_id := (v_dig->>'type_id')::bigint;
+      v_identifier := coalesce((v_dig->>'identifier')::text, '');
+      v_amount := coalesce((v_dig->>'amount')::bigint, 0);
+      v_admin_fee := coalesce((v_dig->>'admin_fee')::bigint, 0);
+      v_cost_dig := coalesce((v_dig->>'cost')::bigint, 0);
+      v_charged := v_amount + v_admin_fee;
+      v_profit := v_admin_fee - v_cost_dig;
+      insert into public.digital_sales
+        (sale_id, user_id, transaction_type_id, invoice_number, customer_identifier,
+         amount, admin_fee, cost, profit, total_charged, payment_method, status, notes)
+      values
+        (v_sale_id, p_user_id, v_type_id, v_invoice, v_identifier,
+         v_amount, v_admin_fee, v_cost_dig, v_profit, v_charged,
+         p_payment_method, 'completed', coalesce(p_notes, 'Transaksi digital'));
+    end loop;
+  end if;
 
   if p_customer_id is not null then
     update public.customers
@@ -863,7 +957,8 @@ begin
     'success', true,
     'sale_id', v_sale_id,
     'invoice_number', v_invoice,
-    'subtotal', v_subtotal,
+    'subtotal', v_total_all,
+    'digital_total', v_digital_total,
     'discount', p_discount,
     'grand_total', v_grand,
     'paid_amount', p_paid_amount,
@@ -1060,98 +1155,37 @@ end;
 $$;
 
 -- -----------------------------------------------------------------------------
--- digital: top-up modal (owner)
+-- digital: top-up shared modal (owner)
 -- -----------------------------------------------------------------------------
-create or replace function public.top_up_digital_balance(
-  p_type_id bigint,
+create or replace function public.top_up_digital_modal(
   p_amount bigint,
   p_notes text default null
 ) returns jsonb
 language plpgsql security definer set search_path = public
 as $$
 declare
-  v_balance bigint;
+  v_old bigint;
   v_new bigint;
 begin
   if public.current_user_role() <> 'owner' then raise exception 'Unauthorized'; end if;
   if p_amount < 1 then raise exception 'Jumlah tidak valid'; end if;
 
-  update public.digital_types
-  set balance = balance + p_amount
-  where id = p_type_id
+  select balance into v_old from public.digital_modal where id = 1;
+  if not found then
+    insert into public.digital_modal (id, balance) values (1, 0);
+    v_old := 0;
+  end if;
+
+  update public.digital_modal
+  set balance = balance + p_amount, updated_at = now()
+  where id = 1
   returning balance into v_new;
-  if v_new is null then raise exception 'Jenis tidak ditemukan'; end if;
 
   insert into public.digital_balance_movements (digital_type_id, user_id, amount, balance_after, notes)
-  values (p_type_id, auth.uid(), abs(p_amount), v_new, coalesce(p_notes, 'Tambah modal'));
+  values (null, auth.uid(), p_amount, v_new, coalesce(p_notes, 'Tambah modal'));
 
-  return jsonb_build_object('success', true, 'balance', v_new);
-end;
-$$;
-
--- -----------------------------------------------------------------------------
--- digital: record a digital sale (owner + cashier)
--- -----------------------------------------------------------------------------
-create or replace function public.process_digital_sale(
-  p_type_id bigint,
-  p_identifier text,
-  p_amount bigint,
-  p_admin_fee bigint,
-  p_cost bigint,
-  p_payment_method text,
-  p_notes text default null
-) returns jsonb
-language plpgsql security definer set search_path = public
-as $$
-declare
-  v_type public.digital_types%rowtype;
-  v_profit bigint;
-  v_total bigint;
-  v_invoice text;
-  v_new_balance bigint;
-begin
-  if public.current_user_role() not in ('owner','cashier') then
-    raise exception 'Unauthorized';
-  end if;
-  if trim(coalesce(p_identifier,'')) = '' then raise exception 'Nomor / ID pelanggan wajib diisi'; end if;
-  if p_amount < 0 then raise exception 'Nominal tidak valid'; end if;
-  if p_admin_fee < 0 then raise exception 'Biaya admin tidak valid'; end if;
-  if p_cost < 0 then raise exception 'Biaya modal tidak valid'; end if;
-  if p_payment_method not in ('cash','transfer','qris','ewallet','credit','debit') then
-    raise exception 'Metode pembayaran tidak valid';
-  end if;
-
-  select * into v_type from public.digital_types where id = p_type_id;
-  if not found then raise exception 'Jenis digital tidak ditemukan'; end if;
-  if not v_type.is_active then raise exception 'Jenis digital tidak aktif'; end if;
-
-  v_profit := p_admin_fee - p_cost;
-  v_total := p_amount + p_admin_fee;
-
-  if v_type.reduces_balance then
-    update public.digital_types
-    set balance = balance - p_cost
-    where id = p_type_id
-    returning balance into v_new_balance;
-    if v_new_balance is null then raise exception 'Jenis digital tidak ditemukan'; end if;
-    if v_new_balance < 0 then
-      raise exception 'Saldo modal tidak cukup. Saldo: %, dibutuhkan: %', (v_new_balance + p_cost), p_cost;
-    end if;
-    insert into public.digital_balance_movements (digital_type_id, user_id, amount, balance_after, notes)
-    values (p_type_id, auth.uid(), -p_cost, v_new_balance, 'Transaksi: ' || p_identifier);
-  end if;
-
-  v_invoice := 'DIG-' || to_char(now(),'YYYYMMDD') || '-' || upper(substr(replace(gen_random_uuid()::text,'-',''),1,6));
-
-  insert into public.digital_sales
-    (user_id, transaction_type_id, invoice_number, customer_identifier, amount,
-     admin_fee, cost, profit, total_charged, payment_method, status, notes)
-  values
-    (auth.uid(), p_type_id, v_invoice, p_identifier, p_amount,
-     p_admin_fee, p_cost, v_profit, v_total, p_payment_method, 'completed', p_notes);
-
-  return jsonb_build_object('success', true, 'invoice', v_invoice,
-    'profit', v_profit, 'total_charged', v_total);
+  return jsonb_build_object('success', true, 'balance', v_new,
+    'previous_balance', v_old, 'added', p_amount);
 end;
 $$;
 

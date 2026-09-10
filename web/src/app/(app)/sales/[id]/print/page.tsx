@@ -12,11 +12,18 @@ export default async function SalePrintPage(props: PageProps<"/sales/[id]/print"
   if (Number.isNaN(saleId)) notFound();
 
   const supabase = await createClient();
-  const { data: sale } = await supabase
-    .from("sales")
-    .select("*, customer:customers(name, phone), profile:profiles(name), items:sale_items(*, product:products(name, unit))")
-    .eq("id", saleId)
-    .single();
+  const [{ data: sale }, { data: digitalSales }] = await Promise.all([
+    supabase
+      .from("sales")
+      .select("*, customer:customers(name, phone), profile:profiles(name), items:sale_items(*, product:products(name, unit))")
+      .eq("id", saleId)
+      .single(),
+    supabase
+      .from("digital_sales")
+      .select("id, customer_identifier, amount, admin_fee, cost, total_charged, digital_type:digital_types(name)")
+      .eq("sale_id", saleId)
+      .order("id"),
+  ]);
   if (!sale) notFound();
 
   const { data: settings } = await supabase.from("settings").select("key, value");
@@ -99,6 +106,17 @@ export default async function SalePrintPage(props: PageProps<"/sales/[id]/print"
                   <td className="py-1 text-right">{rupiah(it.subtotal)}</td>
                 </tr>
               ))}
+              {(digitalSales || []).map((d: any) => (
+                <tr key={"d" + d.id}>
+                  <td className="py-1">
+                    <div className="max-w-[140px] leading-tight">{d.digital_type?.name || "Digital"}</div>
+                    <div className="text-[10px] text-gray-400">{d.customer_identifier}</div>
+                  </td>
+                  <td className="py-1 text-center">-</td>
+                  <td className="py-1 text-right">{rupiah(d.amount + d.admin_fee)}</td>
+                  <td className="py-1 text-right">{rupiah(d.total_charged)}</td>
+                </tr>
+              ))}
             </tbody>
           </table>
 
@@ -113,6 +131,16 @@ export default async function SalePrintPage(props: PageProps<"/sales/[id]/print"
               <div className="flex justify-between">
                 <span>Diskon</span>
                 <span>-{rupiah(sale.discount)}</span>
+              </div>
+            )}
+            {(digitalSales || []).length > 0 && (
+              <div className="flex justify-between">
+                <span>Layanan Digital</span>
+                <span>
+                  {rupiah(
+                    (digitalSales as any[]).reduce((a: number, d: any) => a + Number(d.total_charged || 0), 0)
+                  )}
+                </span>
               </div>
             )}
             <div className="flex justify-between text-sm font-bold text-gray-900">

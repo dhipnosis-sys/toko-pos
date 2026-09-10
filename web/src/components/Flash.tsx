@@ -26,6 +26,7 @@ const messages: Record<string, string> = {
   digital: "Transaksi digital tersimpan",
   topup: "Saldo modal ditambah",
   type: "Jenis digital tersimpan",
+  identifier: "Nomor / ID pelanggan digital wajib diisi",
   category: "Kategori wajib dipilih",
   empty: "Belum ada data",
 };
