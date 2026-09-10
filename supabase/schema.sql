@@ -838,7 +838,13 @@ begin
     v_price := coalesce((v_item->>'cost_price')::bigint, 0);
     insert into public.purchase_items (purchase_id, product_id, quantity, cost_price, subtotal)
     values (v_purchase_id, v_product_id, v_qty, v_price, v_price * v_qty);
-    update public.products set stock = stock + v_qty where id = v_product_id;
+    update public.products
+    set stock = stock + v_qty,
+        cost_price = case
+          when stock = 0 or cost_price = 0 then v_price
+          else round((cost_price * stock + v_price * v_qty)::numeric / (stock + v_qty))::bigint
+        end
+    where id = v_product_id;
   end loop;
 
   if p_supplier_id is not null then

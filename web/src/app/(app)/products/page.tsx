@@ -165,6 +165,12 @@ export default async function ProductsPage(props: PageProps<"/products">) {
                     <Td right>
                       <span className="inline-flex items-center gap-2">
                         <Link
+                          href={"/price-history?product=" + p.id}
+                          className="rounded-lg bg-gray-50 border border-gray-200 px-2.5 py-1 text-xs font-medium text-gray-700 hover:bg-gray-100"
+                        >
+                          Riwayat Harga
+                        </Link>
+                        <Link
                           href={"/products/" + p.id + "/edit"}
                           className="rounded-lg bg-gray-50 border border-gray-200 px-2.5 py-1 text-xs font-medium text-gray-700 hover:bg-gray-100"
                         >
