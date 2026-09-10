@@ -39,8 +39,13 @@ export default function RegisterPage() {
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-emerald-700 via-emerald-600 to-teal-600 p-4">
-      <div className="w-full max-w-sm bg-white rounded-2xl shadow-xl p-8">
-        <div className="text-center mb-6">
+<div className="w-full max-w-sm bg-white rounded-2xl shadow-xl p-8">
+          <img
+            src="/logo-transparan2.webp"
+            alt="Warung Nuhahade"
+            className="mx-auto w-40 h-auto mb-5"
+          />
+          <div className="text-center mb-6">
           <h1 className="text-2xl font-bold text-emerald-700">Warung Nuhahade</h1>
           <p className="text-sm text-gray-500 mt-1">Buat akun baru</p>
           <p className="text-xs text-gray-400 mt-2">
