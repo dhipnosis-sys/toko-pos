@@ -26,12 +26,27 @@ export default async function CustomerDetailPage(props: PageProps<"/customers/[i
     .eq("customer_id", customerId)
     .order("created_at", { ascending: false });
 
-  const { data: payments } = await supabase
-    .from("payments")
-    .select("amount, payment_method, notes, created_at")
-    .eq("payable_type", "sale")
-    .in("payable_id", sales?.map((s) => s.id) || [])
-    .order("created_at", { ascending: false });
+  const saleIds = (sales || []).map((s: any) => s.id);
+  const [{ data: salePays }, { data: settlePays }] = await Promise.all([
+    supabase
+      .from("payments")
+      .select("amount, payment_method, notes, created_at")
+      .eq("payable_type", "sale")
+      .in("payable_id", saleIds.length ? saleIds : [0])
+      .order("created_at", { ascending: false }),
+    supabase
+      .from("payments")
+      .select("amount, payment_method, notes, created_at")
+      .eq("payable_type", "customer")
+      .eq("payable_id", customerId)
+      .order("created_at", { ascending: false }),
+  ]);
+  const payments = [
+    ...(salePays || []).map((p: any) => ({ ...p, kind: "sale" })),
+    ...(settlePays || []).map((p: any) => ({ ...p, kind: "settle" })),
+  ].sort((a, b) => (a.created_at < b.created_at ? 1 : -1));
+
+  const debt = customer.total_debt;
 
   return (
     <div className="space-y-6">
@@ -42,7 +57,17 @@ export default async function CustomerDetailPage(props: PageProps<"/customers/[i
             Terdaftar {formatDateTime(customer.created_at)}
           </p>
         </div>
-        <LinkBack href="/customers" />
+        <div className="flex items-center gap-2">
+          {Number(debt) > 0 && (
+            <Link
+              href={"/customers/" + customerId + "/pay"}
+              className="inline-flex items-center gap-2 rounded-lg bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-700"
+            >
+              Bayar Piutang
+            </Link>
+          )}
+          <LinkBack href="/customers" />
+        </div>
       </div>
       <Flash searchParams={props.searchParams} />
 
@@ -57,7 +82,7 @@ export default async function CustomerDetailPage(props: PageProps<"/customers/[i
         </Card>
         <Card className="px-5 py-4">
           <p className="text-sm text-gray-500">Sisa Piutang</p>
-          <p className="mt-1 text-xl font-bold text-red-600">{rupiah(customer.total_debt)}</p>
+          <p className="mt-1 text-xl font-bold text-red-600">{rupiah(debt)}</p>
         </Card>
         <Card className="px-5 py-4">
           <p className="text-sm text-gray-500">Batas Piutang</p>
@@ -139,21 +164,29 @@ export default async function CustomerDetailPage(props: PageProps<"/customers/[i
       </Card>
 
       <Card>
-        <CardHeader title="Pembayaran Piutang" subtitle={String(payments?.length || 0) + " pembayaran"} />
+        <CardHeader title="Pembayaran & Pelunasan" subtitle={String(payments.length) + " pembayaran"} />
         {!payments || payments.length === 0 ? (
-          <EmptyState message="Belum ada pembayaran piutang" />
+          <EmptyState message="Belum ada pembayaran" />
         ) : (
           <Table>
             <THead>
               <Th>Tanggal</Th>
+              <Th>Jenis</Th>
               <Th>Metode</Th>
               <Th>Catatan</Th>
               <Th right>Jumlah</Th>
             </THead>
             <tbody className="divide-y divide-gray-100">
-              {payments.map((p: any) => (
-                <tr key={p.id} className="hover:bg-gray-50">
+              {payments.map((p: any, i: number) => (
+                <tr key={i} className="hover:bg-gray-50">
                   <Td>{formatDateTime(p.created_at)}</Td>
+                  <Td>
+                    {p.kind === "settle" ? (
+                      <Badge className="bg-emerald-50 text-emerald-700">Pelunasan Piutang</Badge>
+                    ) : (
+                      <Badge className="bg-gray-100 text-gray-600">Saat Transaksi</Badge>
+                    )}
+                  </Td>
                   <Td>{paymentMethodLabels[p.payment_method] || p.payment_method}</Td>
                   <Td>{p.notes || "-"}</Td>
                   <Td right>

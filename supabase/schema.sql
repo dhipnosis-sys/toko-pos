@@ -164,6 +164,10 @@ create table public.customers (
   updated_at timestamptz not null default now()
 );
 
+-- Unique phone identifier for customers (name may repeat across different people)
+create unique index customers_phone_unique_idx on public.customers (phone)
+  where phone is not null;
+
 create trigger customers_updated_at
   before update on public.customers
   for each row execute function public.set_updated_at();
@@ -303,7 +307,7 @@ create trigger purchase_items_updated_at
 -- -----------------------------------------------------------------------------
 create table public.payments (
   id bigint generated always as identity primary key,
-  payable_type text not null check (payable_type in ('sale','supplier')),
+  payable_type text not null check (payable_type in ('sale','supplier','customer')),
   payable_id bigint not null,
   amount bigint not null default 0,
   payment_method text not null check (payment_method in ('cash','transfer','qris','ewallet','credit','debit','receivable')),
@@ -890,6 +894,37 @@ begin
 
   insert into public.payments (payable_type, payable_id, amount, payment_method, notes)
   values ('supplier', p_supplier_id, p_amount, p_method, coalesce(p_notes, 'Pembayaran supplier'));
+
+  return jsonb_build_object('success', true);
+end;
+$$;
+
+-- -----------------------------------------------------------------------------
+-- record_customer_payment — record payment toward customer debt (piutang)
+-- -----------------------------------------------------------------------------
+create or replace function public.record_customer_payment(
+  p_customer_id bigint,
+  p_amount bigint,
+  p_method text,
+  p_notes text default null
+) returns jsonb
+language plpgsql security definer set search_path = public
+as $$
+begin
+  if public.current_user_role() not in ('owner','cashier') then
+    raise exception 'Unauthorized';
+  end if;
+  if p_amount < 1 then raise exception 'Jumlah tidak valid'; end if;
+  if p_method not in ('cash','transfer','qris','ewallet','credit','debit') then raise exception 'Metode tidak valid'; end if;
+
+  update public.customers
+  set total_paid = total_paid + p_amount,
+      total_debt = greatest(0, total_debt - p_amount)
+  where id = p_customer_id;
+  if not found then raise exception 'Pelanggan tidak ditemukan'; end if;
+
+  insert into public.payments (payable_type, payable_id, amount, payment_method, notes)
+  values ('customer', p_customer_id, p_amount, p_method, coalesce(p_notes, 'Pembayaran piutang'));
 
   return jsonb_build_object('success', true);
 end;

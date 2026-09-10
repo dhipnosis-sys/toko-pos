@@ -77,6 +77,14 @@ export default async function CustomersPage(props: PageProps<"/customers">) {
                   <Td>{formatDateOnly(c.created_at)}</Td>
                   <Td right>
                     <span className="inline-flex items-center gap-2">
+                      {Number(c.total_debt) > 0 && (
+                        <Link
+                          href={"/customers/" + c.id + "/pay"}
+                          className="rounded-lg border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-xs font-medium text-emerald-700 hover:bg-emerald-100"
+                        >
+                          Bayar
+                        </Link>
+                      )}
                       <Link
                         href={"/customers/" + c.id + "/edit"}
                         className="rounded-lg bg-gray-50 border border-gray-200 px-2.5 py-1 text-xs font-medium text-gray-700 hover:bg-gray-100"

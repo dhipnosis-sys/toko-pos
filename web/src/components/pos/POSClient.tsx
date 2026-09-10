@@ -6,6 +6,7 @@ import type { ProductUnit } from "@/lib/types";
 import { rupiah, paymentMethodLabels, unitLabels } from "@/lib/utils";
 import { Card, btn } from "@/components/ui";
 import { checkout } from "@/app/actions/sales";
+import { quickCreateCustomer } from "@/app/actions/customers";
 import { BarcodeScanner } from "@/components/pos/BarcodeScanner";
 
 type PosProduct = {
@@ -50,7 +51,13 @@ export default function POSClient({
   profileName,
 }: {
   products: PosProduct[];
-  customers: { id: number; name: string }[];
+  customers: {
+    id: number;
+    name: string;
+    phone?: string | null;
+    city?: string | null;
+    address?: string | null;
+  }[];
   profileName: string;
 }) {
   const [step, setStep] = useState<"items" | "cart" | "payment">("items");
@@ -60,6 +67,12 @@ export default function POSClient({
   const [tier, setTier] = useState<Tier>("retail");
   const [cart, setCart] = useState<CartItem[]>([]);
   const [customerId, setCustomerId] = useState("");
+  const [showAddCustomer, setShowAddCustomer] = useState(false);
+  const [newName, setNewName] = useState("");
+  const [newPhone, setNewPhone] = useState("");
+  const [addingCustomer, setAddingCustomer] = useState(false);
+  const [addError, setAddError] = useState("");
+  const [custList, setCustList] = useState(customers);
   const [method, setMethod] = useState("cash");
   const [paidAmount, setPaidAmount] = useState("0");
   const [discount, setDiscount] = useState("0");
@@ -143,6 +156,55 @@ export default function POSClient({
     setDiscount("0");
     setNotes("");
     setErrorMsg("");
+  }
+
+  function customerLabel(c: {
+    id: number;
+    name: string;
+    phone?: string | null;
+    city?: string | null;
+    address?: string | null;
+  }): string {
+    const extra = c.phone || c.city || c.address || "";
+    return extra ? c.name + " · " + extra : c.name;
+  }
+
+  function openAddCustomer() {
+    setAddError("");
+    setNewName("");
+    setNewPhone("");
+    setShowAddCustomer(true);
+  }
+
+  async function saveNewCustomer() {
+    const name = newName.trim();
+    if (!name) {
+      setAddError("Nama wajib diisi");
+      return;
+    }
+    setAddingCustomer(true);
+    setAddError("");
+    const fd = new FormData();
+    fd.set("name", name);
+    fd.set("phone", newPhone.trim());
+    const res: any = await quickCreateCustomer(fd);
+    setAddingCustomer(false);
+    if (res && res.error) {
+      setAddError(
+        res.error === "phone_taken"
+          ? "Nomor telepon sudah dipakai pelanggan lain"
+          : res.error === "name"
+            ? "Nama wajib diisi"
+            : String(res.error)
+      );
+      return;
+    }
+    setCustList((prev) => [
+      ...prev,
+      { id: res.id, name: res.name, phone: res.phone || null },
+    ]);
+    setCustomerId(String(res.id));
+    setShowAddCustomer(false);
   }
 
   const subtotal = cart.reduce((a, c) => a + c.price * c.qty, 0);
@@ -339,18 +401,62 @@ export default function POSClient({
             <div className="space-y-3">
               <div>
                 <label className="mb-1 block text-xs font-medium text-gray-500">Pelanggan</label>
-                <select
-                  value={customerId}
-                  onChange={(e) => setCustomerId(e.target.value)}
-                  className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                >
-                  <option value="">Umum (tanpa nama)</option>
-                  {customers.map((c) => (
-                    <option key={c.id} value={c.id}>
-                      {c.name}
-                    </option>
-                  ))}
-                </select>
+                <div className="flex gap-2">
+                  <select
+                    value={customerId}
+                    onChange={(e) => setCustomerId(e.target.value)}
+                    className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                  >
+                    <option value="">Umum (tanpa nama)</option>
+                    {custList.map((c) => (
+                      <option key={c.id} value={c.id}>
+                        {customerLabel(c)}
+                      </option>
+                    ))}
+                  </select>
+                  <button
+                    type="button"
+                    onClick={openAddCustomer}
+                    className="inline-flex shrink-0 items-center gap-1 rounded-lg border border-gray-300 bg-white px-2.5 py-2 text-xs font-medium text-gray-700 hover:bg-gray-50"
+                  >
+                    <Plus size={14} /> Tambah
+                  </button>
+                </div>
+                {showAddCustomer && (
+                  <div className="mt-2 rounded-lg border border-emerald-200 bg-emerald-50 p-3 space-y-2">
+                    <p className="text-xs font-semibold text-emerald-700">Pelanggan baru</p>
+                    <input
+                      value={newName}
+                      onChange={(e) => setNewName(e.target.value)}
+                      placeholder="Nama pelanggan *"
+                      className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                    />
+                    <input
+                      value={newPhone}
+                      onChange={(e) => setNewPhone(e.target.value)}
+                      placeholder="Telepon / WA (untuk pembeda)"
+                      className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                    />
+                    {addError && <p className="text-xs text-red-600">{addError}</p>}
+                    <div className="flex gap-2">
+                      <button
+                        type="button"
+                        disabled={addingCustomer}
+                        onClick={saveNewCustomer}
+                        className="rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-emerald-700 disabled:opacity-40"
+                      >
+                        {addingCustomer ? "Menyimpan..." : "Simpan & Pilih"}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setShowAddCustomer(false)}
+                        className="rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-xs font-medium text-gray-600 hover:bg-gray-50"
+                      >
+                        Batal
+                      </button>
+                    </div>
+                  </div>
+                )}
               </div>
               <div>
                 <label className="mb-1 block text-xs font-medium text-gray-500">Catatan</label>

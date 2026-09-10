@@ -15,7 +15,7 @@ export default async function PosPage(props: PageProps<"/pos">) {
       )
       .eq("is_active", true)
       .order("name"),
-    supabase.from("customers").select("id, name").order("name"),
+    supabase.from("customers").select("id, name, phone, city, address").order("name"),
   ]);
 
   return (
