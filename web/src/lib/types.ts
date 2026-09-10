@@ -56,7 +56,17 @@ export type Customer = {
   updated_at: string;
 };
 
-export type ProductUnit = "pcs" | "pack" | "box";
+export type ProductUnit = "pcs" | "pack" | "box" | "karung" | "kg" | "ltr";
+
+export type ProductUnitRow = {
+  id?: number;
+  unit: ProductUnit;
+  factor: number;
+  retail_price: number;
+  wholesale_price: number;
+  reseller_price: number;
+  is_default?: boolean;
+};
 
 export type Product = {
   id: number;
@@ -82,6 +92,7 @@ export type Product = {
   updated_at: string;
   category?: Category | null;
   supplier?: Supplier | null;
+  units?: ProductUnitRow[];
 };
 
 export type PaymentMethod =
@@ -120,6 +131,7 @@ export type SaleItem = {
   sale_id: number;
   product_id: number;
   quantity: number;
+  unit: string | null;
   unit_price: number;
   cost_price: number;
   subtotal: number;
@@ -149,6 +161,7 @@ export type PurchaseItem = {
   purchase_id: number;
   product_id: number;
   quantity: number;
+  unit: string | null;
   cost_price: number;
   subtotal: number;
   created_at: string;

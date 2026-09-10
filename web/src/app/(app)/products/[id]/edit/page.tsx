@@ -12,11 +12,10 @@ export default async function EditProductPage(props: PageProps<"/products/[id]/e
   if (Number.isNaN(productId)) notFound();
 
   const supabase = await createClient();
-  const { data: product } = await supabase
-    .from("products")
-    .select("*")
-    .eq("id", productId)
-    .single();
+  const [{ data: product }, { data: units }] = await Promise.all([
+    supabase.from("products").select("*").eq("id", productId).single(),
+    supabase.from("product_units").select("id, unit, factor, retail_price, wholesale_price, reseller_price, is_default").eq("product_id", productId).order("unit"),
+  ]);
   if (!product) notFound();
 
   const { data: categories } = await supabase.from("categories").select("id, name").order("name");
@@ -38,12 +37,20 @@ export default async function EditProductPage(props: PageProps<"/products/[id]/e
           sku: product.sku,
           barcode: product.barcode,
           unit: product.unit,
+          units: (units || []).map((u: any) => ({
+            unit: u.unit,
+            factor: Number(u.factor),
+            retail_price: u.retail_price,
+            wholesale_price: u.wholesale_price,
+            reseller_price: u.reseller_price,
+            is_default: u.is_default,
+          })),
           cost_price: product.cost_price,
           retail_price: product.retail_price,
           wholesale_price: product.wholesale_price,
           reseller_price: product.reseller_price,
-          stock: product.stock,
-          min_stock: product.min_stock,
+          stock: Number(product.stock),
+          min_stock: Number(product.min_stock),
           description: product.description,
           notes: product.notes,
           is_active: product.is_active,

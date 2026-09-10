@@ -12,7 +12,7 @@ export default async function PosPage(props: PageProps<"/pos">) {
       supabase
         .from("products")
         .select(
-          "id, name, sku, barcode, unit, stock, min_stock, retail_price, wholesale_price, reseller_price"
+          "id, name, sku, barcode, unit, stock, min_stock, retail_price, wholesale_price, reseller_price, units:product_units(id, unit, factor, retail_price, wholesale_price, reseller_price, is_default)"
         )
         .eq("is_active", true)
         .order("name"),
@@ -27,6 +27,27 @@ export default async function PosPage(props: PageProps<"/pos">) {
     reduces_balance: t.reduces_balance,
   }));
 
+  const productsProp = (products || []).map((p: any) => ({
+    id: p.id,
+    name: p.name,
+    sku: p.sku,
+    barcode: p.barcode,
+    unit: p.unit,
+    stock: Number(p.stock),
+    min_stock: Number(p.min_stock),
+    retail_price: p.retail_price,
+    wholesale_price: p.wholesale_price,
+    reseller_price: p.reseller_price,
+    units: (p.units || []).map((u: any) => ({
+      unit: u.unit,
+      factor: Number(u.factor),
+      retail_price: u.retail_price,
+      wholesale_price: u.wholesale_price,
+      reseller_price: u.reseller_price,
+      is_default: u.is_default,
+    })),
+  }));
+
   return (
     <div>
       <div className="mb-5 flex items-center justify-between">
@@ -37,18 +58,7 @@ export default async function PosPage(props: PageProps<"/pos">) {
       </div>
       <Flash searchParams={props.searchParams} />
       <POSClient
-        products={(products || []).map((p: any) => ({
-          id: p.id,
-          name: p.name,
-          sku: p.sku,
-          barcode: p.barcode,
-          unit: p.unit,
-          stock: p.stock,
-          min_stock: p.min_stock,
-          retail_price: p.retail_price,
-          wholesale_price: p.wholesale_price,
-          reseller_price: p.reseller_price,
-        }))}
+        products={productsProp}
         customers={customers || []}
         profileName={profile.name}
         digitalTypes={digitalTypesProp}

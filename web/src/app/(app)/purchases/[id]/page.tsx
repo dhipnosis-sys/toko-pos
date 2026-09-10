@@ -65,9 +65,9 @@ export default async function PurchaseDetailPage(props: PageProps<"/purchases/[i
                   <span className="font-medium text-gray-900">
                     {it.product?.name || "Produk #" + it.product_id}
                   </span>
-                  {it.product?.unit && (
-                    <span className="ml-2 text-xs text-gray-400">{unitLabels[it.product.unit]}</span>
-                  )}
+                  <span className="ml-2 text-xs text-gray-400">
+                    {unitLabels[it.unit || it.product?.unit || "pcs"]}
+                  </span>
                 </Td>
                 <Td right>{rupiah(it.cost_price)}</Td>
                 <Td right>{it.quantity}</Td>

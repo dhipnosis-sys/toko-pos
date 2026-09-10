@@ -11,13 +11,14 @@ export async function checkout(formData: FormData) {
   const supabase = await createClient();
 
   const itemCount = Number(formData.get("item_count") || 0);
-  const items: { product_id: number; quantity: number; price: number }[] = [];
+  const items: { product_id: number; quantity: number; price: number; unit: string | null }[] = [];
   for (let i = 0; i < itemCount; i++) {
     const productId = Number(formData.get(`items[${i}].product_id`) || 0);
     const quantity = Number(formData.get(`items[${i}].quantity`) || 0);
+    const unit = String(formData.get(`items[${i}].unit`) || "").trim() || null;
     const price = Number(formData.get(`items[${i}].price`) || 0);
     if (!productId || quantity < 1) continue;
-    items.push({ product_id: productId, quantity, price });
+    items.push({ product_id: productId, quantity, price, unit });
   }
 
   const digitalCount = Number(formData.get("digital_count") || 0);

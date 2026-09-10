@@ -68,6 +68,9 @@ export const unitLabels: Record<string, string> = {
   pcs: "Pcs",
   pack: "Pack",
   box: "Box",
+  karung: "Karung",
+  kg: "Kg",
+  ltr: "Liter",
 };
 
 export const statusLabels: Record<string, string> = {

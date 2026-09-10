@@ -1,6 +1,7 @@
 import { Card, Label, Input, Select, Textarea, btn } from "@/components/ui";
 import { LinkBack } from "@/components/Flash";
-import { unitLabels } from "@/lib/utils";
+import ProductUnitsEditor from "@/components/forms/ProductUnitsEditor";
+import type { ProductUnitRow } from "@/lib/types";
 
 export function ProductFields({
   categories,
@@ -15,7 +16,8 @@ export function ProductFields({
     name?: string;
     sku?: string;
     barcode?: string | null;
-    unit?: string;
+    unit?: string | null;
+    units?: ProductUnitRow[];
     cost_price?: number;
     retail_price?: number;
     wholesale_price?: number;
@@ -67,45 +69,22 @@ export function ProductFields({
         <Label htmlFor="barcode">Barcode</Label>
         <Input id="barcode" name="barcode" defaultValue={defaults?.barcode || ""} placeholder="scan / kode unik" />
       </div>
-      <div>
-        <Label htmlFor="unit">Satuan</Label>
-        <Select id="unit" name="unit" defaultValue={defaults?.unit || "pcs"}>
-          {Object.entries(unitLabels).map(([value, label]) => (
-            <option key={value} value={value}>
-              {label}
-            </option>
-          ))}
-        </Select>
-      </div>
       <div className="grid grid-cols-2 gap-3">
         <div>
           <Label htmlFor="stock">Stok Awal</Label>
-          <Input id="stock" name="stock" type="number" min={0} defaultValue={defaults?.stock ?? 0} />
+          <Input id="stock" name="stock" type="number" min={0} step={0.5} defaultValue={defaults?.stock ?? 0} />
         </div>
         <div>
           <Label htmlFor="min_stock">Stok Minimal</Label>
-          <Input id="min_stock" name="min_stock" type="number" min={0} defaultValue={defaults?.min_stock ?? 0} />
+          <Input id="min_stock" name="min_stock" type="number" min={0} step={0.5} defaultValue={defaults?.min_stock ?? 0} />
         </div>
       </div>
-      <div className="grid grid-cols-2 gap-3">
-        <div>
-          <Label htmlFor="cost_price">Harga Modal (Rp)</Label>
-          <Input id="cost_price" name="cost_price" type="number" min={0} step={100} defaultValue={defaults?.cost_price ?? 0} />
-        </div>
-        <div>
-          <Label htmlFor="retail_price">Harga Retail (Rp)</Label>
-          <Input id="retail_price" name="retail_price" type="number" min={0} step={100} defaultValue={defaults?.retail_price ?? 0} />
-        </div>
+      <div>
+        <Label htmlFor="cost_price">Harga Modal (per satuan utama, Rp)</Label>
+        <Input id="cost_price" name="cost_price" type="number" min={0} step={100} defaultValue={defaults?.cost_price ?? 0} />
       </div>
-      <div className="grid grid-cols-2 gap-3">
-        <div>
-          <Label htmlFor="wholesale_price">Harga Grosir (Rp)</Label>
-          <Input id="wholesale_price" name="wholesale_price" type="number" min={0} step={100} defaultValue={defaults?.wholesale_price ?? 0} />
-        </div>
-        <div>
-          <Label htmlFor="reseller_price">Harga Reseller (Rp)</Label>
-          <Input id="reseller_price" name="reseller_price" type="number" min={0} step={100} defaultValue={defaults?.reseller_price ?? 0} />
-        </div>
+      <div className="sm:col-span-2">
+        <ProductUnitsEditor defaults={{ unit: defaults?.unit, units: defaults?.units }} />
       </div>
       <div className="sm:col-span-2">
         <Label htmlFor="description">Deskripsi</Label>

@@ -97,9 +97,9 @@ export default async function SalePrintPage(props: PageProps<"/sales/[id]/print"
                     <div className="max-w-[140px] leading-tight">
                       {it.product?.name || "Produk #" + it.product_id}
                     </div>
-                    {it.product?.unit && (
-                      <div className="text-[10px] text-gray-400">{unitLabels[it.product.unit]}</div>
-                    )}
+                    <div className="text-[10px] text-gray-400">
+                      {unitLabels[it.unit || it.product?.unit || "pcs"]}
+                    </div>
                   </td>
                   <td className="py-1 text-center">{it.quantity}</td>
                   <td className="py-1 text-right">{rupiah(it.unit_price)}</td>

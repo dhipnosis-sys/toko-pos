@@ -20,6 +20,16 @@ type PosProduct = {
   retail_price: number;
   wholesale_price: number;
   reseller_price: number;
+  units?: PosProductUnit[];
+};
+
+type PosProductUnit = {
+  unit: ProductUnit;
+  factor: number;
+  retail_price: number;
+  wholesale_price: number;
+  reseller_price: number;
+  is_default?: boolean;
 };
 
 export type PosDigitalType = {
@@ -35,6 +45,7 @@ type CartProduct = {
   product_id: number;
   name: string;
   unit: ProductUnit;
+  factor: number;
   price: number;
   qty: number;
   stock: number;
@@ -65,6 +76,37 @@ const priceFields: Record<Tier, "retail_price" | "wholesale_price" | "reseller_p
   wholesale: "wholesale_price",
   reseller: "reseller_price",
 };
+
+function unitRow(p: PosProduct, unit: ProductUnit): PosProductUnit {
+  const rows: PosProductUnit[] =
+    p.units && p.units.length
+      ? p.units
+      : [
+          {
+            unit: p.unit,
+            factor: 1,
+            retail_price: p.retail_price,
+            wholesale_price: p.wholesale_price,
+            reseller_price: p.reseller_price,
+            is_default: true,
+          },
+        ];
+  return rows.find((r) => r.unit === unit) || rows[0];
+}
+
+function factorOf(p: PosProduct, unit: ProductUnit): number {
+  const f = Number(unitRow(p, unit).factor);
+  return f > 0 ? f : 1;
+}
+
+function qtyStep(unit: ProductUnit): number {
+  return unit === "kg" || unit === "ltr" ? 0.5 : 1;
+}
+
+function roundQty(n: number, unit: ProductUnit): number {
+  if (unit === "kg" || unit === "ltr") return Math.round(n * 1000) / 1000;
+  return Math.max(0, Math.round(n));
+}
 
 export default function POSClient({
   products,
@@ -123,20 +165,48 @@ export default function POSClient({
     );
   }, [search, products]);
 
-  function priceOf(p: PosProduct): number {
-    return Number(p[priceFields[tier]]) || Number(p.retail_price) || 0;
+  function priceOf(p: PosProduct, unit: ProductUnit): number {
+    const row = unitRow(p, unit);
+    return Number(row[priceFields[tier]]) || 0;
+  }
+
+  function unitsFor(productId: number): PosProductUnit[] {
+    const p = products.find((x) => x.id === productId);
+    if (!p) return [];
+    const rows =
+      p.units && p.units.length
+        ? p.units
+        : [
+            {
+              unit: p.unit,
+              factor: 1,
+              retail_price: p.retail_price,
+              wholesale_price: p.wholesale_price,
+              reseller_price: p.reseller_price,
+              is_default: true,
+            },
+          ];
+    return [...rows].sort((a, b) => {
+      if (a.unit === p.unit) return -1;
+      if (b.unit === p.unit) return 1;
+      return a.unit.localeCompare(b.unit);
+    });
   }
 
   function addToCart(p: PosProduct) {
     setErrorMsg("");
+    const unit = p.unit;
+    const factor = factorOf(p, unit);
+    const step = qtyStep(unit);
     const existing = cart.find((c) => c.kind === "product" && c.product_id === p.id) as
       | CartProduct
       | undefined;
-    if (existing && existing.qty >= p.stock) {
+    const usedBase = (existing ? existing.qty * existing.factor : 0) + factor;
+    if (usedBase > p.stock) {
       setErrorMsg("Stok tidak cukup untuk " + p.name);
       return;
     }
-    if (!existing && p.stock < 1) {
+    if (p.stock < factor) {
       setErrorMsg("Stok " + p.name + " habis");
       return;
     }
@@ -145,7 +215,7 @@ export default function POSClient({
       if (found) {
         return prev.map((c) =>
           c.kind === "product" && c.product_id === p.id
-            ? { ...c, qty: Math.min(c.qty + 1, p.stock) }
+            ? { ...c, qty: roundQty(c.qty + step, c.unit) }
             : c
         );
       }
@@ -155,8 +225,9 @@ export default function POSClient({
           kind: "product" as const,
           product_id: p.id,
           name: p.name,
-          unit: p.unit,
-          price: priceOf(p),
+          unit,
+          factor,
+          price: priceOf(p, unit),
           qty: 1,
           stock: p.stock,
         },
@@ -167,12 +238,47 @@ export default function POSClient({
   function changeQty(productId: number, delta: number) {
     setCart((prev) =>
       prev
-        .map((c) =>
-          c.kind === "product" && c.product_id === productId
-            ? { ...c, qty: Math.min(Math.max(c.qty + delta, 1), c.stock) }
-            : c
-        )
+        .map((c) => {
+          if (c.kind !== "product" || c.product_id !== productId) return c;
+          const step = qtyStep(c.unit);
+          let nq = roundQty(c.qty + (delta === 0 ? 0 : (delta < 0 ? -step : step)), c.unit);
+          if (nq < 0) nq = 0;
+          const maxQty = c.factor > 0 ? Math.floor((c.stock / c.factor) * 1000) / 1000 : 0;
+          if (maxQty >= 0 && nq > maxQty) nq = maxQty;
+          return { ...c, qty: nq };
+        })
         .filter((c) => (c.kind === "product" ? c.qty > 0 : true))
+    );
+  }
+
+  function setQty(productId: number, raw: string) {
+    setCart((prev) =>
+      prev.map((c) => {
+        if (c.kind !== "product" || c.product_id !== productId) return c;
+        let nq = roundQty(Number(raw) || 0, c.unit);
+        const maxQty = c.factor > 0 ? Math.floor((c.stock / c.factor) * 1000) / 1000 : 0;
+        if (maxQty >= 0 && nq > maxQty) nq = maxQty;
+        return { ...c, qty: nq };
+      })
+    );
+  }
+
+  function changeUnit(productId: number, unit: ProductUnit) {
+    setCart((prev) =>
+      prev.map((c) => {
+        if (c.kind !== "product" || c.product_id !== productId) return c;
+        const p = products.find((x) => x.id === productId);
+        if (!p) return c;
+        const f = factorOf(p, unit);
+        const nq = roundQty(Math.min(c.qty, Math.floor((c.stock / f) * 1000) / 1000), unit);
+        return {
+          ...c,
+          unit,
+          factor: f,
+          price: priceOf(p, unit),
+          qty: nq > 0 ? nq : 1,
+        };
+      })
     );
   }
 
@@ -331,6 +437,7 @@ export default function POSClient({
     productRows.forEach((c, i) => {
       fd.set(`items[${i}].product_id`, String(c.product_id));
       fd.set(`items[${i}].quantity`, String(c.qty));
+      fd.set(`items[${i}].unit`, c.unit);
       fd.set(`items[${i}].price`, String(c.price));
     });
 
@@ -439,7 +546,7 @@ export default function POSClient({
                   {p.barcode ? " · " + p.barcode : ""}
                 </p>
                 <div className="mt-2 flex items-center justify-between">
-                  <p className="text-sm font-bold text-emerald-600">{rupiah(priceOf(p))}</p>
+                  <p className="text-sm font-bold text-emerald-600">{rupiah(priceOf(p, p.unit))}</p>
                   <span
                     className={
                       "rounded px-1.5 py-0.5 text-[10px] font-medium " +
@@ -583,8 +690,8 @@ export default function POSClient({
                         <Trash2 size={15} />
                       </button>
                     </div>
-                    <div className="mt-2 flex items-center justify-between">
-                      <div className="flex items-center gap-2">
+                    <div className="mt-2 flex items-center justify-between gap-2">
+                      <div className="flex items-center gap-1.5">
                         <button
                           type="button"
                           onClick={() => changeQty(c.product_id, -1)}
@@ -592,23 +699,42 @@ export default function POSClient({
                         >
                           <Minus size={13} />
                         </button>
-                        <span className="w-8 text-center text-sm font-semibold">{c.qty}</span>
+                        <input
+                          type="number"
+                          min={0}
+                          step={qtyStep(c.unit)}
+                          value={c.qty}
+                          onChange={(e) => setQty(c.product_id, e.target.value)}
+                          className="w-16 rounded-lg border border-gray-300 bg-white px-1.5 py-1 text-center text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                        />
                         <button
                           type="button"
                           onClick={() => changeQty(c.product_id, 1)}
-                          disabled={c.qty >= c.stock}
+                          disabled={c.qty * c.factor >= c.stock}
                           className="rounded border border-gray-200 p-1 hover:bg-gray-100 disabled:opacity-40"
                         >
                           <Plus size={13} />
                         </button>
                       </div>
-                      <p className="text-sm font-bold text-gray-900">
-                        {rupiah(c.price * c.qty)}
-                        <span className="ml-1 text-[10px] font-normal text-gray-400">
-                          @{rupiah(c.price)}
-                        </span>
-                      </p>
+                      <div className="flex items-center gap-1.5">
+                        <select
+                          value={c.unit}
+                          onChange={(e) => changeUnit(c.product_id, e.target.value as ProductUnit)}
+                          className="rounded-lg border border-gray-200 bg-white px-1.5 py-1 text-xs focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                        >
+                          {(unitsFor(c.product_id)).map((u) => (
+                            <option key={u.unit} value={u.unit}>
+                              {unitLabels[u.unit]}
+                              {u.factor !== 1 ? " ×" + u.factor : ""}
+                            </option>
+                          ))}
+                        </select>
+                        <p className="text-sm font-bold text-gray-900">{rupiah(c.price * c.qty)}</p>
+                      </div>
                     </div>
+                    <p className="mt-1 text-[10px] text-gray-400">
+                      @{rupiah(c.price)}/{unitLabels[c.unit]}
+                    </p>
                   </div>
                 ) : (
                   <div key={c.key} className="rounded-lg border border-amber-200 bg-amber-50/60 p-2.5">
@@ -783,12 +909,17 @@ export default function POSClient({
               ) : (
                 cart.map((c) =>
                   c.kind === "product" ? (
-                    <div key={"p" + c.product_id} className="flex items-center justify-between py-1.5">
+<div key={"p" + c.product_id} className="flex items-center justify-between py-1.5">
                       <div className="min-w-0">
                         <p className="truncate text-sm text-gray-800">
-                          {c.name} <span className="text-gray-400">×{c.qty}</span>
+                          {c.name}{" "}
+                          <span className="text-gray-400">
+                            ×{c.qty} {unitLabels[c.unit]}
+                          </span>
                         </p>
-                        <p className="text-[11px] text-gray-400">@{rupiah(c.price)}</p>
+                        <p className="text-[11px] text-gray-400">
+                          @{rupiah(c.price)}/{unitLabels[c.unit]}
+                        </p>
                       </div>
                       <p className="text-sm font-semibold">{rupiah(c.price * c.qty)}</p>
                     </div>

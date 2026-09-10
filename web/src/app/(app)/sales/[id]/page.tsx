@@ -85,7 +85,7 @@ export default async function SaleDetailPage(props: PageProps<"/sales/[id]">) {
                 <Td>
                   <span className="font-medium text-gray-900">{it.product?.name || "Produk #" + it.product_id}</span>
                   <span className="ml-2 text-xs text-gray-400">
-                    {it.product?.unit ? unitLabels[it.product.unit] : ""}
+                    {unitLabels[it.unit || it.product?.unit || "pcs"]}
                   </span>
                 </Td>
                 <Td right>{rupiah(it.unit_price)}</Td>

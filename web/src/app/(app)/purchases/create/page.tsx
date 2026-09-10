@@ -9,7 +9,9 @@ export default async function CreatePurchasePage(props: PageProps<"/purchases/cr
   const [{ data: products }, { data: suppliers }] = await Promise.all([
     supabase
       .from("products")
-      .select("id, name, sku, unit, cost_price")
+      .select(
+        "id, name, sku, unit, cost_price, units:product_units(id, unit, factor, retail_price, wholesale_price, reseller_price, is_default)"
+      )
       .eq("is_active", true)
       .order("name"),
     supabase.from("suppliers").select("id, name").order("name"),
@@ -27,6 +29,11 @@ export default async function CreatePurchasePage(props: PageProps<"/purchases/cr
             sku: p.sku,
             unit: p.unit,
             cost_price: p.cost_price,
+            units: (p.units || []).map((u: any) => ({
+              unit: u.unit,
+              factor: Number(u.factor),
+              is_default: u.is_default,
+            })),
           })) as any[]
         }
         suppliers={suppliers || []}

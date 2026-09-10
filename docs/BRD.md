@@ -88,6 +88,8 @@ Aturan: **pengguna pertama** yang terdaftar otomatis menjadi **Owner**; pengguna
 ### M-03 Master Produk & Kategori
 - **FR-09** CRUD kategori (soft delete / cek pemakaian).
 - **FR-10** CRUD produk: nama, SKU, barcode, kategori, satuan, stok & stok minimal, harga modal, harga retail/grosir/reseller, status aktif.
+- **FR-10a** Multi-satuan per produk: satuan utama + daftar satuan lain dengan **faktor konversi** (mis. beras: utama `kg`, `karung`=25, `ltr`=0.8) dan **harga per satuan** (retail/grosir/reseller). Harga modal diisi per satuan utama.
+- **FR-10b** POS & pembelian mendukung jual/beli dalam satuan mana pun: qty desimal untuk `kg`/`ltr`, pemilihan satuan di keranjang, cek stok berdasar pemakaian stok (qty × faktor) terhadap saldo satuan utama.
 - **FR-11** Filter produk: pencarian (nama/SKU/barcode), kategori, status, stok menipis.
 - **FR-12** Kolom margin otomatis = harga retail − harga modal (rata-rata).
 - **FR-13** Tautan "Riwayat Harga" per produk.
@@ -163,7 +165,7 @@ Aturan: **pengguna pertama** yang terdaftar otomatis menjadi **Owner**; pengguna
 | Kode | Aturan |
 |---|---|
 | BR-01 | Seluruh nilai uang disimpan sebagai **integer rupiah** (bukan float) untuk menghindari kesalahan pembulatan. |
-| BR-02 | Satuan produk hanya: `pcs`, `pack`, `box`. |
+| BR-02 | Satuan produk: `pcs`, `pack`, `box`, `karung`, `kg`, `ltr`. Stok tersimpan dalam **satuan utama** sebagai desimal (`karung` dibeli, `kg`/`ltr` dijual via konversi per produk). |
 | BR-03 | Tiga jenjang harga: `retail_price`, `wholesale_price`, `reseller_price`. |
 | BR-04 | Pengguna pertama yang mendaftar menjadi **owner**; lainnya `cashier` sampai diubah Owner. Default user baru dari halaman Users = `cashier`. |
 | BR-05 | Margin produk = `retail_price − cost_price`. |
@@ -277,3 +279,4 @@ Prioritas yang disarankan:
 | 2026-09-10 | v1.1 | Logo toko di halaman login/register, sidebar (desktop & mobile), dan favicon tab browser. | `web/public/logo-transparan2.webp`; `web/src/app/(app)/components/Sidebar.tsx` |
 | 2026-09-10 | v1.1 | **Modul Penjualan Digital (M-13)**: jenis extensible + saldo modal per jenis (top-up Owner) + pencatatan transaksi (admin & modal) — FR-53..FR-57, BR-17..BR-19. | `supabase/migrations/digital_sales.sql`; `web/src/app/(app)/digital/`; `web/src/app/actions/digital.ts` |
 | 2026-09-10 | v1.2 | **Penjualan Digital terintegrasi POS**: saldo modal gabung (`digital_modal`), transaksi digital masuk keranjang POS & satu invoice dengan barang (barang digital bisa jadi satu-satunya isi), halaman Digital disederhanakan (modal gabung, kelola jenis, riwayat dgn invoice). | `supabase/migrations/digital_sales_v2.sql`; `web/src/components/pos/POSClient.tsx`; `web/src/app/(app)/digital/` |
+| 2026-09-10 | v1.3 | **Multi-satuan produk**: stok desimal dalam satuan utama, konversi per produk (`karung`/`kg`/`ltr`), harga per satuan, jual & beli lintas satuan di POS dan pembelian. | `supabase/migrations/product_units.sql`; `web/src/components/forms/ProductUnitsEditor.tsx`; `web/src/components/pos/POSClient.tsx` |

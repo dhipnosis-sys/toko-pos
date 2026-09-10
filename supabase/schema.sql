@@ -188,9 +188,9 @@ create table public.products (
   retail_price bigint not null default 0,
   wholesale_price bigint not null default 0,
   reseller_price bigint not null default 0,
-  stock bigint not null default 0,
-  min_stock bigint not null default 0,
-  unit text not null default 'pcs' check (unit in ('pcs', 'pack', 'box')),
+  stock numeric(12,3) not null default 0,
+  min_stock numeric(12,3) not null default 0,
+  unit text not null default 'pcs' check (unit in ('pcs', 'pack', 'box', 'karung', 'kg', 'ltr')),
   notes text,
   image text,
   is_active boolean not null default true,
@@ -205,6 +205,30 @@ create index products_active_idx on public.products (is_active) where deleted_at
 
 create trigger products_updated_at
   before update on public.products
+  for each row execute function public.set_updated_at();
+
+-- -----------------------------------------------------------------------------
+-- product_units — satuan jual/beli per produk + faktor konversi ke satuan utama
+--   faktor = berapa satuan utama dalam 1 satuan tsb (kg:1, karung:25, liter:0,8)
+-- -----------------------------------------------------------------------------
+create table public.product_units (
+  id bigint generated always as identity primary key,
+  product_id bigint not null references public.products (id) on delete cascade,
+  unit text not null check (unit in ('pcs', 'pack', 'box', 'karung', 'kg', 'ltr')),
+  factor numeric(12,3) not null default 1,
+  retail_price bigint not null default 0,
+  wholesale_price bigint not null default 0,
+  reseller_price bigint not null default 0,
+  is_default boolean not null default false,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  unique (product_id, unit)
+);
+
+create index product_units_product_idx on public.product_units (product_id);
+
+create trigger product_units_updated_at
+  before update on public.product_units
   for each row execute function public.set_updated_at();
 
 -- -----------------------------------------------------------------------------
@@ -243,7 +267,8 @@ create table public.sale_items (
   id bigint generated always as identity primary key,
   sale_id bigint not null references public.sales (id) on delete cascade,
   product_id bigint not null references public.products (id) on delete restrict,
-  quantity bigint not null default 0,
+  quantity numeric(12,3) not null default 0,
+  unit text not null default 'pcs',
   unit_price bigint not null default 0,
   cost_price bigint not null default 0,
   subtotal bigint not null default 0,
@@ -288,7 +313,8 @@ create table public.purchase_items (
   id bigint generated always as identity primary key,
   purchase_id bigint not null references public.purchases (id) on delete cascade,
   product_id bigint not null references public.products (id) on delete restrict,
-  quantity bigint not null default 0,
+  quantity numeric(12,3) not null default 0,
+  unit text not null default 'pcs',
   cost_price bigint not null default 0,
   subtotal bigint not null default 0,
   created_at timestamptz not null default now(),
@@ -549,6 +575,7 @@ alter table public.categories          enable row level security;
 alter table public.suppliers           enable row level security;
 alter table public.customers           enable row level security;
 alter table public.products            enable row level security;
+alter table public.product_units       enable row level security;
 alter table public.sales               enable row level security;
 alter table public.sale_items          enable row level security;
 alter table public.purchases           enable row level security;
@@ -631,6 +658,11 @@ drop policy if exists "products_delete" on public.products;
 create policy "products_delete" on public.products
   for delete to authenticated
   using (public.current_user_role() in ('owner','warehouse'));
+
+-- product_units (reads for all; writes only via RPC save_product_units) -----
+drop policy if exists "product_units_select_auth" on public.product_units;
+create policy "product_units_select_auth" on public.product_units
+  for select to authenticated using (true);
 
 -- sales ------------------------------------------------------------------
 drop policy if exists "sales_select_auth" on public.sales;
@@ -801,10 +833,13 @@ declare
   v_item jsonb;
   v_dig jsonb;
   v_product_id bigint;
-  v_qty bigint;
+  v_qty numeric;
+  v_unit text;
+  v_factor numeric;
+  v_qty_stock numeric;
   v_price bigint;
   v_cost bigint;
-  v_stock bigint;
+  v_stock numeric;
   v_subtotal bigint := 0;
   v_digital_total bigint := 0;
   v_total_all bigint;
@@ -833,25 +868,30 @@ begin
   if p_discount is null or p_discount < 0 then p_discount := 0; end if;
   if p_paid_amount is null or p_paid_amount < 0 then p_paid_amount := 0; end if;
 
-  -- validate product stock
+  -- validate product stock (in base unit)
   if p_items is not null then
     for v_item in select * from jsonb_array_elements(p_items) loop
       v_product_id := (v_item->>'product_id')::bigint;
-      v_qty := (v_item->>'quantity')::bigint;
-      if v_qty < 1 then raise exception 'Jumlah tidak valid'; end if;
+      v_qty := (v_item->>'quantity')::numeric;
+      v_unit := coalesce(nullif(v_item->>'unit',''), (select unit from public.products where id = v_product_id));
+      if v_qty <= 0 then raise exception 'Jumlah tidak valid'; end if;
+      select factor into v_factor from public.product_units
+        where product_id = v_product_id and unit = v_unit;
+      if not found or v_factor is null or v_factor <= 0 then v_factor := 1; end if;
+      v_qty_stock := round(v_qty * v_factor, 3);
       select stock into v_stock from public.products where id = v_product_id;
       if not found then raise exception 'Produk tidak ditemukan: %', v_product_id; end if;
-      if v_stock < v_qty then
+      if v_stock < v_qty_stock then
         raise exception 'Stok produk tidak cukup. Tersedia: %', v_stock;
       end if;
     end loop;
 
     for v_item in select * from jsonb_array_elements(p_items) loop
       v_product_id := (v_item->>'product_id')::bigint;
-      v_qty := (v_item->>'quantity')::bigint;
+      v_qty := (v_item->>'quantity')::numeric;
       v_price := coalesce((v_item->>'price')::bigint, 0);
       if v_qty < 0 or v_price < 0 then raise exception 'Data item tidak valid'; end if;
-      v_subtotal := v_subtotal + v_price * v_qty;
+      v_subtotal := v_subtotal + round(v_price * v_qty)::bigint;
     end loop;
   end if;
 
@@ -911,12 +951,17 @@ begin
   if p_items is not null then
     for v_item in select * from jsonb_array_elements(p_items) loop
       v_product_id := (v_item->>'product_id')::bigint;
-      v_qty := (v_item->>'quantity')::bigint;
+      v_qty := (v_item->>'quantity')::numeric;
+      v_unit := coalesce(nullif(v_item->>'unit',''), (select unit from public.products where id = v_product_id));
       v_price := coalesce((v_item->>'price')::bigint, 0);
+      select factor into v_factor from public.product_units
+        where product_id = v_product_id and unit = v_unit;
+      if not found or v_factor is null or v_factor <= 0 then v_factor := 1; end if;
+      v_qty_stock := round(v_qty * v_factor, 3);
       select cost_price into v_cost from public.products where id = v_product_id;
-      insert into public.sale_items (sale_id, product_id, quantity, unit_price, cost_price, subtotal)
-      values (v_sale_id, v_product_id, v_qty, v_price, coalesce(v_cost,0), v_price * v_qty);
-      update public.products set stock = stock - v_qty where id = v_product_id and stock >= v_qty;
+      insert into public.sale_items (sale_id, product_id, quantity, unit, unit_price, cost_price, subtotal)
+      values (v_sale_id, v_product_id, v_qty, v_unit, v_price, round(coalesce(v_cost,0) * v_factor)::bigint, round(v_price * v_qty)::bigint);
+      update public.products set stock = stock - v_qty_stock where id = v_product_id and stock >= v_qty_stock;
       if not found then raise exception 'Stok berubah saat transaksi'; end if;
     end loop;
   end if;
@@ -981,8 +1026,12 @@ as $$
 declare
   v_item jsonb;
   v_product_id bigint;
-  v_qty bigint;
+  v_qty numeric;
+  v_unit text;
+  v_factor numeric;
+  v_qty_stock numeric;
   v_price bigint;
+  v_cost_base bigint;
   v_subtotal bigint := 0;
   v_invoice text;
   v_purchase_id bigint;
@@ -997,10 +1046,10 @@ begin
 
   for v_item in select * from jsonb_array_elements(p_items) loop
     v_product_id := (v_item->>'product_id')::bigint;
-    v_qty := (v_item->>'quantity')::bigint;
+    v_qty := (v_item->>'quantity')::numeric;
     v_price := coalesce((v_item->>'cost_price')::bigint, 0);
-    if v_qty < 1 or v_price < 0 then raise exception 'Data item tidak valid'; end if;
-    v_subtotal := v_subtotal + v_price * v_qty;
+    if v_qty <= 0 or v_price < 0 then raise exception 'Data item tidak valid'; end if;
+    v_subtotal := v_subtotal + round(v_price * v_qty)::bigint;
   end loop;
 
   for i in 1..10 loop
@@ -1018,15 +1067,23 @@ begin
 
   for v_item in select * from jsonb_array_elements(p_items) loop
     v_product_id := (v_item->>'product_id')::bigint;
-    v_qty := (v_item->>'quantity')::bigint;
+    v_qty := (v_item->>'quantity')::numeric;
+    v_unit := coalesce(nullif(v_item->>'unit',''), (select unit from public.products where id = v_product_id));
     v_price := coalesce((v_item->>'cost_price')::bigint, 0);
-    insert into public.purchase_items (purchase_id, product_id, quantity, cost_price, subtotal)
-    values (v_purchase_id, v_product_id, v_qty, v_price, v_price * v_qty);
+    select factor into v_factor from public.product_units
+      where product_id = v_product_id and unit = v_unit;
+    if not found or v_factor is null or v_factor <= 0 then v_factor := 1; end if;
+    v_qty_stock := round(v_qty * v_factor, 3);
+    v_cost_base := round((v_price::numeric / v_factor))::bigint;
+
+    insert into public.purchase_items (purchase_id, product_id, quantity, unit, cost_price, subtotal)
+    values (v_purchase_id, v_product_id, v_qty, v_unit, v_price, round(v_price * v_qty)::bigint);
+
     update public.products
-    set stock = stock + v_qty,
+    set stock = stock + v_qty_stock,
         cost_price = case
-          when stock = 0 or cost_price = 0 then v_price
-          else round((cost_price * stock + v_price * v_qty)::numeric / (stock + v_qty))::bigint
+          when stock = 0 or cost_price = 0 then v_cost_base
+          else round((cost_price * stock + v_cost_base * v_qty_stock)::numeric / (stock + v_qty_stock))::bigint
         end
     where id = v_product_id;
   end loop;
@@ -1045,6 +1102,86 @@ begin
     'subtotal', v_subtotal,
     'grand_total', v_subtotal
   );
+end;
+$$;
+
+-- -----------------------------------------------------------------------------
+-- save_product_units — simpan daftar satuan + konversi + harga per satuan
+-- (security definer: Owner/Warehouse). Baris satuan utama (default) wajib
+-- faktor = 1; harga default disinkronkan ke kolom harga produk.
+-- -----------------------------------------------------------------------------
+create or replace function public.save_product_units(
+  p_product_id bigint,
+  p_display_unit text,
+  p_units jsonb
+) returns jsonb
+language plpgsql security definer set search_path = public
+as $$
+declare
+  v_row jsonb;
+  v_unit text;
+  v_factor numeric;
+  v_retail bigint;
+  v_wholesale bigint;
+  v_reseller bigint;
+  v_valid_units text[] := array['pcs','pack','box','karung','kg','ltr'];
+  v_has_default boolean := false;
+begin
+  if public.current_user_role() not in ('owner','warehouse') then
+    raise exception 'Unauthorized';
+  end if;
+
+  if not exists (select 1 from public.products where id = p_product_id) then
+    raise exception 'Produk tidak ditemukan';
+  end if;
+  if p_units is null or jsonb_array_length(p_units) = 0 then
+    raise exception 'Satuan minimal satu';
+  end if;
+
+  for v_row in select * from jsonb_array_elements(p_units) loop
+    v_unit := coalesce(v_row->>'unit', '');
+    v_factor := coalesce((v_row->>'factor')::numeric, 0);
+    v_retail := coalesce((v_row->>'retail_price')::bigint, 0);
+    v_wholesale := coalesce((v_row->>'wholesale_price')::bigint, 0);
+    v_reseller := coalesce((v_row->>'reseller_price')::bigint, 0);
+
+    if not (v_unit = any (v_valid_units)) then raise exception 'Satuan tidak valid: %', v_unit; end if;
+    if v_retail < 0 or v_wholesale < 0 or v_reseller < 0 then raise exception 'Harga tidak valid'; end if;
+    if v_factor is null or v_factor <= 0 then raise exception 'Faktor konversi harus lebih dari 0'; end if;
+    if v_unit = p_display_unit then
+      if v_factor <> 1 then raise exception 'Satuan utama wajib faktor konversi 1'; end if;
+      v_has_default := true;
+    end if;
+  end loop;
+  if not v_has_default then raise exception 'Satuan utama harus ada dalam daftar'; end if;
+
+  delete from public.product_units where product_id = p_product_id;
+
+  for v_row in select * from jsonb_array_elements(p_units) loop
+    v_unit := coalesce(v_row->>'unit', '');
+    v_factor := coalesce((v_row->>'factor')::numeric, 0);
+    v_retail := coalesce((v_row->>'retail_price')::bigint, 0);
+    v_wholesale := coalesce((v_row->>'wholesale_price')::bigint, 0);
+    v_reseller := coalesce((v_row->>'reseller_price')::bigint, 0);
+    insert into public.product_units
+      (product_id, unit, factor, retail_price, wholesale_price, reseller_price, is_default)
+    values
+      (p_product_id, v_unit, v_factor, v_retail, v_wholesale, v_reseller, v_unit = p_display_unit);
+  end loop;
+
+  select retail_price, wholesale_price, reseller_price into v_retail, v_wholesale, v_reseller
+  from public.product_units
+  where product_id = p_product_id and unit = p_display_unit;
+
+  update public.products
+  set unit = p_display_unit,
+      retail_price = v_retail,
+      wholesale_price = v_wholesale,
+      reseller_price = v_reseller,
+      updated_at = now()
+  where id = p_product_id;
+
+  return jsonb_build_object('success', true, 'product_id', p_product_id);
 end;
 $$;
 
