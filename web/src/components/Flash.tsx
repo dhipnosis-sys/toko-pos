@@ -23,6 +23,9 @@ const messages: Record<string, string> = {
   inactive: "Akun Anda dinonaktifkan. Hubungi pemilik toko.",
   invalid: "Kredensial tidak valid",
   amount: "Nominal harus lebih dari 0",
+  digital: "Transaksi digital tersimpan",
+  topup: "Saldo modal ditambah",
+  type: "Jenis digital tersimpan",
   category: "Kategori wajib dipilih",
   empty: "Belum ada data",
 };

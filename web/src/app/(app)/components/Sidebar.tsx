@@ -6,6 +6,7 @@ import { useState } from "react";
 import {
   LayoutDashboard,
   ShoppingCart,
+  Smartphone,
   Package,
   History,
   Tags,
@@ -34,6 +35,7 @@ type NavItem = {
 const NAV_ITEMS: NavItem[] = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard, roles: ["owner", "cashier", "warehouse"] },
   { href: "/pos", label: "Kasir (POS)", icon: ShoppingCart, roles: ["owner", "cashier"] },
+  { href: "/digital", label: "Digital", icon: Smartphone, roles: ["owner", "cashier"] },
   { href: "/products", label: "Produk", icon: Package, roles: ["owner", "warehouse"] },
   { href: "/price-history", label: "Riwayat Harga", icon: History, roles: ["owner", "warehouse"] },
   { href: "/categories", label: "Kategori", icon: Tags, roles: ["owner", "warehouse"] },
