@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentUser } from "@/lib/dal";
+import { PrintButton } from "@/components/PrintButton";
 import { rupiah, formatDateTime, getSetting, unitLabels, paymentMethodLabels } from "@/lib/utils";
 
 export default async function SalePrintPage(props: PageProps<"/sales/[id]/print">) {
@@ -30,13 +31,7 @@ export default async function SalePrintPage(props: PageProps<"/sales/[id]/print"
       <div className="mx-auto max-w-sm print:max-w-none">
         <div className="mb-4 hidden print:block" />
         <div className="no-print mb-4 flex justify-center gap-2">
-          <button
-            type="button"
-            onClick={() => window.print()}
-            className="rounded-lg bg-emerald-600 px-5 py-2 text-sm font-medium text-white hover:bg-emerald-700"
-          >
-            Cetak Struk
-          </button>
+          <PrintButton />
           <Link
             href={"/sales/" + sale.id}
             className="rounded-lg bg-white border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
