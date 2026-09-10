@@ -72,10 +72,10 @@ insert into public.digital_types (name, reduces_balance, is_active) values
 on conflict (name) do nothing;
 
 create or replace function public.save_digital_type(
-  p_type_id bigint default null,
   p_name text,
   p_reduces_balance boolean default true,
-  p_is_active boolean default true
+  p_is_active boolean default true,
+  p_type_id bigint default null
 ) returns bigint
 language plpgsql security definer set search_path = public
 as $$
