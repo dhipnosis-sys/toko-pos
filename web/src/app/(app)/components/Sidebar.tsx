@@ -125,7 +125,7 @@ export function Sidebar({ profile }: { profile: Profile }) {
       {/* Mobile top bar */}
       <div className="lg:hidden fixed top-0 inset-x-0 z-40 bg-emerald-800 text-white flex items-center justify-between px-4 py-3 shadow">
         <div className="flex items-center gap-2 font-semibold">
-          <span className="text-lg">🧺</span> Warung Nuhahade
+          <img src="/logo-transparan2.webp" alt="Warung Nuhahade" className="h-8 w-auto" /> Warung Nuhahade
         </div>
         <button onClick={() => setOpen(true)} aria-label="Buka menu">
           <Menu className="w-6 h-6" />
@@ -134,8 +134,8 @@ export function Sidebar({ profile }: { profile: Profile }) {
 
       {/* Desktop sidebar */}
       <aside className="hidden lg:flex fixed inset-y-0 left-0 w-64 flex-col bg-gradient-to-b from-emerald-800 to-emerald-900 text-white">
-        <div className="px-6 py-6 flex items-center gap-2 border-b border-white/10">
-          <span className="text-2xl">🧺</span>
+        <div className="px-6 py-6 flex items-center gap-3 border-b border-white/10">
+          <img src="/logo-transparan2.webp" alt="Warung Nuhahade" className="w-12 h-auto" />
           <div>
             <p className="font-bold">Warung Nuhahade</p>
             <p className="text-xs text-emerald-100/70">POS &amp; Inventori</p>
@@ -154,7 +154,9 @@ export function Sidebar({ profile }: { profile: Profile }) {
           />
           <aside className="absolute inset-y-0 left-0 w-72 flex flex-col bg-gradient-to-b from-emerald-800 to-emerald-900 text-white shadow-xl">
             <div className="px-4 py-4 flex items-center justify-between border-b border-white/10">
-              <span className="font-bold">Warung Nuhahade</span>
+              <span className="font-bold flex items-center gap-2">
+                <img src="/logo-transparan2.webp" alt="Warung Nuhahade" className="h-8 w-auto" /> Warung Nuhahade
+              </span>
               <button onClick={() => setOpen(false)} aria-label="Tutup menu">
                 <X className="w-6 h-6" />
               </button>

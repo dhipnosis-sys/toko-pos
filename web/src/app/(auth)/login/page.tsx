@@ -43,7 +43,7 @@ export default function LoginPage() {
           <img
             src="/logo-transparan2.webp"
             alt="Warung Nuhahade"
-            className="mx-auto w-40 h-auto mb-5"
+            className="mx-auto w-64 h-auto mb-5"
           />
           <h1 className="text-2xl font-bold text-emerald-700 text-center">Warung Nuhahade</h1>
           <p className="text-sm text-gray-500 mt-1 text-center">Masuk untuk melanjutkan</p>

@@ -43,7 +43,7 @@ export default function RegisterPage() {
           <img
             src="/logo-transparan2.webp"
             alt="Warung Nuhahade"
-            className="mx-auto w-40 h-auto mb-5"
+            className="mx-auto w-64 h-auto mb-5"
           />
           <div className="text-center mb-6">
           <h1 className="text-2xl font-bold text-emerald-700">Warung Nuhahade</h1>
