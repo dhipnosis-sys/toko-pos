@@ -41,7 +41,6 @@ export default async function PaySupplierPage(props: PageProps<"/suppliers/[id]/
               name="amount"
               type="number"
               min={1}
-              step={1000}
               defaultValue={debt > 0 ? String(debt) : ""}
               required
             />

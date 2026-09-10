@@ -41,7 +41,6 @@ export default async function PayCustomerPage(props: PageProps<"/customers/[id]/
               name="amount"
               type="number"
               min={1}
-              step={1000}
               defaultValue={debt > 0 ? String(debt) : ""}
               required
             />
