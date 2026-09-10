@@ -20,12 +20,33 @@ alter table public.products
 
 -- -----------------------------------------------------------------------------
 -- 2. sale_items / purchase_items — simpan satuan yang dipakai + qty desimal
+--    (drop view v_sale_items dulu: view bergantung pada kolom quantity)
 -- -----------------------------------------------------------------------------
+drop view if exists public.v_sale_items;
+
 alter table public.sale_items alter column quantity type numeric(12,3);
 alter table public.sale_items add column if not exists unit text not null default 'pcs';
 
 alter table public.purchase_items alter column quantity type numeric(12,3);
 alter table public.purchase_items add column if not exists unit text not null default 'pcs';
+
+create or replace view public.v_sale_items as
+select
+  s.id              as sale_id,
+  s.invoice_number,
+  s.payment_method,
+  s.status          as sale_status,
+  s.created_at      as sale_date,
+  s.user_id,
+  s.customer_id,
+  si.product_id,
+  si.quantity,
+  si.unit,
+  si.unit_price,
+  si.cost_price,
+  si.subtotal
+from public.sales s
+join public.sale_items si on si.sale_id = s.id;
 
 -- -----------------------------------------------------------------------------
 -- 3. product_units — satuan jual/beli per produk + faktor konversi ke satuan utama

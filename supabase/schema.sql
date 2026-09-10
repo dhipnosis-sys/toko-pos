@@ -561,6 +561,7 @@ select
   s.customer_id,
   si.product_id,
   si.quantity,
+  si.unit,
   si.unit_price,
   si.cost_price,
   si.subtotal
