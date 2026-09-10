@@ -18,13 +18,18 @@ export default function RegisterPage() {
     setError("");
     setLoading(true);
     const supabase = createClient();
-    const { error } = await supabase.auth.signUp({
+    const { data, error } = await supabase.auth.signUp({
       email,
       password,
       options: { data: { name } },
     });
     if (error) {
       setError(error.message);
+      setLoading(false);
+      return;
+    }
+    if (!data.session) {
+      setError("Registrasi berhasil! Cek email kamu untuk konfirmasi akun sebelum masuk.");
       setLoading(false);
       return;
     }
