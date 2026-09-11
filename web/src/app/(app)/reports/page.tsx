@@ -4,6 +4,7 @@ import { getCurrentUser } from "@/lib/dal";
 import {
   rupiah,
   formatDateOnly,
+  formatDateTime,
   todayStartISO,
   monthStartISO,
   daysAgoISO,
@@ -13,6 +14,7 @@ import {
 import { Card, CardHeader, StatCard, StatusBadge, EmptyState, Badge } from "@/components/ui";
 import { Table, THead, Th, Td } from "@/components/Flash";
 import { DashboardChart } from "@/components/DashboardChart";
+import ExportReportButton from "@/components/reports/ExportReportButton";
 
 const DAYS = 30;
 
@@ -35,7 +37,7 @@ export default async function ReportsPage(props: PageProps<"/reports">) {
   const month = monthStartISO();
   const chartStart = daysAgoISO(DAYS - 1);
 
-  const [{ count: salesToday }, { data: chartSales }, { data: methodSales }, { data: topItems }, { data: customerDebts }, { data: supplierDebts }, { data: todaySales }] =
+  const [{ count: salesToday }, { data: chartSales }, { data: methodSales }, { data: topItems }, { data: customerDebts }, { data: supplierDebts }, { data: todaySales }, { data: digitalMonth }, { data: recentDigital }] =
     await Promise.all([
       supabase.from("sales").select("id", { count: "exact", head: true }).gte("created_at", today).eq("status", "completed"),
       supabase.from("sales").select("created_at, grand_total").eq("status", "completed").gte("created_at", chartStart),
@@ -54,6 +56,17 @@ export default async function ReportsPage(props: PageProps<"/reports">) {
         .eq("status", "completed")
         .gte("created_at", chartStart)
         .order("created_at", { ascending: false }),
+      supabase
+        .from("digital_sales")
+        .select("total_charged, profit, digital_type:digital_types(name)")
+        .gte("created_at", month),
+      supabase
+        .from("digital_sales")
+        .select(
+          "id, invoice_number, customer_identifier, amount, admin_fee, profit, total_charged, created_at, digital_type:digital_types(name), sale:sales(id, invoice_number)"
+        )
+        .order("created_at", { ascending: false })
+        .limit(5),
     ]);
 
   const byDay = new Map<string, number>();
@@ -87,6 +100,20 @@ export default async function ReportsPage(props: PageProps<"/reports">) {
 
   const monthSalesTotal = [...byMethod.values()].reduce((a, b) => a + b, 0);
 
+  const digitalTypeMap = new Map<string, { name: string; qty: number; total: number; profit: number }>();
+  for (const d of digitalMonth || []) {
+    const type: any = Array.isArray(d.digital_type) ? d.digital_type[0] : d.digital_type;
+    const name = type?.name || "-";
+    const cur = digitalTypeMap.get(name) || { name, qty: 0, total: 0, profit: 0 };
+    cur.qty += 1;
+    cur.total += Number(d.total_charged || 0);
+    cur.profit += Number(d.profit || 0);
+    digitalTypeMap.set(name, cur);
+  }
+  const digitalBreakdown = [...digitalTypeMap.values()].sort((a, b) => b.total - a.total);
+  const digitalMonthTotal = digitalBreakdown.reduce((a, b) => a + b.total, 0);
+  const digitalMonthProfit = digitalBreakdown.reduce((a, b) => a + b.profit, 0);
+
   return (
     <div className="space-y-6">
       <h1 className="text-xl sm:text-2xl font-bold text-gray-900">Laporan</h1>
@@ -110,6 +137,10 @@ export default async function ReportsPage(props: PageProps<"/reports">) {
 
       {tab === "penjualan" && (
         <>
+          <div className="flex items-center justify-end">
+            <ExportReportButton />
+          </div>
+
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
             <StatCard label="Omzet Hari Ini" value={rupiah(chartData[chartData.length - 1]?.total || 0)} sub={String(salesToday || 0) + " transaksi"} />
             <StatCard label="Omzet Bulan Ini" value={rupiah(monthSalesTotal)} />
@@ -173,6 +204,70 @@ export default async function ReportsPage(props: PageProps<"/reports">) {
               )}
             </Card>
           </div>
+
+          <Card>
+            <CardHeader
+              title="Penjualan Digital"
+              subtitle={"Bulan ini · " + rupiah(digitalMonthTotal) + " · Profit admin " + rupiah(digitalMonthProfit)}
+              action={<Link href="/digital" className="text-sm text-emerald-600 hover:underline">Semua</Link>}
+            />
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-0 lg:divide-x divide-gray-100">
+              <div className="p-5">
+                {digitalBreakdown.length === 0 ? (
+                  <EmptyState message="Belum ada transaksi digital bulan ini" />
+                ) : (
+                  <div className="space-y-3">
+                    {digitalBreakdown.map((d) => (
+                      <div key={d.name}>
+                        <div className="mb-1 flex items-center justify-between text-sm">
+                          <span className="text-gray-800">{d.name}</span>
+                          <span className="text-xs text-gray-500">{d.qty} transaksi</span>
+                        </div>
+                        <div className="mb-1 flex items-center justify-between text-sm">
+                          <span className="text-gray-500 text-xs">Nilai: {rupiah(d.total)}</span>
+                          <span className="text-emerald-600 text-xs">Profit: {rupiah(d.profit)}</span>
+                        </div>
+                        <div className="h-2 rounded-full bg-gray-100">
+                          <div
+                            className="h-2 rounded-full bg-sky-500"
+                            style={{ width: (d.total / Math.max(1, digitalBreakdown[0].total)) * 100 + "%" }}
+                          />
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+              <div className="p-5">
+                {!recentDigital || recentDigital.length === 0 ? (
+                  <EmptyState message="Belum ada transaksi digital" />
+                ) : (
+                  <Table>
+                    <THead>
+                      <Th>Invoice</Th>
+                      <Th>Jenis</Th>
+                      <Th>Tanggal</Th>
+                      <Th right>Total</Th>
+                    </THead>
+                    <tbody className="divide-y divide-gray-100">
+                      {recentDigital.map((d: any) => (
+                        <tr key={d.id} className="hover:bg-gray-50">
+                          <Td>
+                            <Link href={"/sales/" + (Array.isArray(d.sale) ? d.sale[0]?.id : d.sale?.id)} className="text-emerald-600 hover:underline">
+                              {d.invoice_number || "-"}
+                            </Link>
+                          </Td>
+                          <Td>{(Array.isArray(d.digital_type) ? d.digital_type[0] : d.digital_type)?.name || "-"}</Td>
+                          <Td>{formatDateTime(d.created_at)}</Td>
+                          <Td right>{rupiah(d.total_charged)}</Td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </Table>
+                )}
+              </div>
+            </div>
+          </Card>
         </>
       )}
 

@@ -108,6 +108,14 @@ export function daysAgoISO(days: number): string {
   return d.toISOString();
 }
 
+export function dayRangeISO(from: string, to: string): { start: string; end: string } | null {
+  if (!from || !to) return null;
+  const f = new Date(from + "T00:00:00");
+  const t = new Date(to + "T23:59:59.999");
+  if (isNaN(f.getTime()) || isNaN(t.getTime()) || f > t) return null;
+  return { start: f.toISOString(), end: t.toISOString() };
+}
+
 export function isLowStock(p: { stock: number; min_stock: number }): boolean {
   return p.stock <= p.min_stock;
 }
