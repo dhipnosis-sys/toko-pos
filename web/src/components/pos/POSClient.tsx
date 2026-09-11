@@ -193,11 +193,11 @@ export default function POSClient({
     });
   }
 
-  function addToCart(p: PosProduct) {
+  function addToCart(p: PosProduct, unit?: ProductUnit) {
     setErrorMsg("");
-    const unit = p.unit;
-    const factor = factorOf(p, unit);
-    const step = qtyStep(unit);
+    const u = unit ?? p.unit;
+    const factor = factorOf(p, u);
+    const step = qtyStep(u);
     const existing = cart.find((c) => c.kind === "product" && c.product_id === p.id) as
       | CartProduct
       | undefined;
@@ -225,9 +225,9 @@ export default function POSClient({
           kind: "product" as const,
           product_id: p.id,
           name: p.name,
-          unit,
+          unit: u,
           factor,
-          price: priceOf(p, unit),
+          price: priceOf(p, u),
           qty: 1,
           stock: p.stock,
         },
@@ -531,32 +531,57 @@ export default function POSClient({
         <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-4 gap-3">
           {filtered.map((p) => {
             const low = p.stock <= p.min_stock;
+            const units = unitsFor(p.id);
             return (
-              <button
+              <div
                 key={p.id}
-                type="button"
-                onClick={() => addToCart(p)}
-                className="rounded-xl border border-gray-200 bg-white p-3 text-left hover:border-emerald-400 hover:shadow-sm transition"
+                className="rounded-xl border border-gray-200 bg-white hover:border-emerald-400 hover:shadow-sm transition"
               >
-                <p className="text-sm font-semibold text-gray-900 leading-snug line-clamp-2">
-                  {p.name}
-                </p>
-                <p className="mt-1 text-xs text-gray-400">
-                  {p.sku}
-                  {p.barcode ? " · " + p.barcode : ""}
-                </p>
-                <div className="mt-2 flex items-center justify-between">
-                  <p className="text-sm font-bold text-emerald-600">{rupiah(priceOf(p, p.unit))}</p>
-                  <span
-                    className={
-                      "rounded px-1.5 py-0.5 text-[10px] font-medium " +
-                      (low ? "bg-red-50 text-red-600" : "bg-gray-100 text-gray-500")
-                    }
-                  >
-                    {p.stock} {unitLabels[p.unit]}
-                  </span>
-                </div>
-              </button>
+                <button
+                  type="button"
+                  onClick={() => addToCart(p)}
+                  className="block w-full p-3 text-left"
+                >
+                  <p className="text-sm font-semibold text-gray-900 leading-snug line-clamp-2">
+                    {p.name}
+                  </p>
+                  <p className="mt-1 text-xs text-gray-400">
+                    {p.sku}
+                    {p.barcode ? " · " + p.barcode : ""}
+                  </p>
+                  <div className="mt-2 flex items-center justify-between">
+                    <p className="text-sm font-bold text-emerald-600">{rupiah(priceOf(p, p.unit))}</p>
+                    <span
+                      className={
+                        "rounded px-1.5 py-0.5 text-[10px] font-medium " +
+                        (low ? "bg-red-50 text-red-600" : "bg-gray-100 text-gray-500")
+                      }
+                    >
+                      {p.stock} {unitLabels[p.unit]}
+                    </span>
+                  </div>
+                </button>
+                {units.length > 1 && (
+                  <div className="border-t border-gray-100 p-2 flex flex-wrap gap-1">
+                    {units.map((u) => (
+                      <button
+                        key={u.unit}
+                        type="button"
+                        onClick={() => addToCart(p, u.unit)}
+                        title={"Tambah " + unitLabels[u.unit]}
+                        className={
+                          "rounded-lg px-2 py-1 text-[11px] font-medium " +
+                          (u.unit === p.unit
+                            ? "bg-emerald-600 text-white"
+                            : "bg-gray-100 text-gray-700 hover:bg-emerald-100 hover:text-emerald-700")
+                        }
+                      >
+                        {unitLabels[u.unit]} · {rupiah(Number(u[priceFields[tier]]) || 0)}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
             );
           })}
         </div>
