@@ -915,7 +915,7 @@ begin
       if not found then raise exception 'Jenis digital tidak ditemukan: %', v_type_id; end if;
 
       v_charged := v_amount + v_admin_fee;
-      v_profit := v_admin_fee - v_cost_dig;
+      v_profit := v_charged - v_cost_dig;
       v_digital_total := v_digital_total + v_charged;
 
       if v_reduces then
@@ -975,7 +975,7 @@ begin
       v_admin_fee := coalesce((v_dig->>'admin_fee')::bigint, 0);
       v_cost_dig := coalesce((v_dig->>'cost')::bigint, 0);
       v_charged := v_amount + v_admin_fee;
-      v_profit := v_admin_fee - v_cost_dig;
+      v_profit := v_charged - v_cost_dig;
       insert into public.digital_sales
         (sale_id, user_id, transaction_type_id, invoice_number, customer_identifier,
          amount, admin_fee, cost, profit, total_charged, payment_method, status, notes)
