@@ -205,6 +205,15 @@ export default function POSClient({
     return m;
   }, [cart]);
 
+  const sortedProducts = useMemo(() => {
+    return [...filtered].sort((a, b) => {
+      const aIn = cartQtyMap.has(a.id) ? 1 : 0;
+      const bIn = cartQtyMap.has(b.id) ? 1 : 0;
+      if (aIn !== bIn) return bIn - aIn;
+      return 0;
+    });
+  }, [filtered, cartQtyMap]);
+
   function addToCart(p: PosProduct, unit?: ProductUnit) {
     setErrorMsg("");
     const u = unit ?? p.unit;
@@ -541,7 +550,7 @@ export default function POSClient({
         </Card>
 
         <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-4 gap-3">
-          {filtered.map((p) => {
+          {sortedProducts.map((p) => {
             const low = p.stock <= p.min_stock;
             const units = unitsFor(p.id);
             const inCart = cartQtyMap.get(p.id);
