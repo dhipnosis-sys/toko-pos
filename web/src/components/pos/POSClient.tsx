@@ -108,6 +108,10 @@ function roundQty(n: number, unit: ProductUnit): number {
   return Math.max(0, Math.round(n));
 }
 
+function fmtQty(n: number): string {
+  return n.toLocaleString("id-ID", { maximumFractionDigits: 3 });
+}
+
 export default function POSClient({
   products,
   customers,
@@ -192,6 +196,14 @@ export default function POSClient({
       return a.unit.localeCompare(b.unit);
     });
   }
+
+  const cartQtyMap = useMemo(() => {
+    const m = new Map<number, { qty: number; unit: ProductUnit }>();
+    for (const c of cart) {
+      if (c.kind === "product") m.set(c.product_id, { qty: c.qty, unit: c.unit });
+    }
+    return m;
+  }, [cart]);
 
   function addToCart(p: PosProduct, unit?: ProductUnit) {
     setErrorMsg("");
@@ -532,17 +544,28 @@ export default function POSClient({
           {filtered.map((p) => {
             const low = p.stock <= p.min_stock;
             const units = unitsFor(p.id);
+            const inCart = cartQtyMap.get(p.id);
             return (
               <div
                 key={p.id}
-                className="rounded-xl border border-gray-200 bg-white hover:border-emerald-400 hover:shadow-sm transition"
+                className={
+                  "relative rounded-xl border bg-white transition " +
+                  (inCart
+                    ? "border-emerald-500 shadow-sm"
+                    : "border-gray-200 hover:border-emerald-400 hover:shadow-sm")
+                }
               >
+                {inCart && (
+                  <span className="absolute right-2 top-2 inline-flex items-center gap-0.5 rounded-full bg-emerald-600 px-2 py-0.5 text-[10px] font-bold text-white shadow-sm">
+                    {fmtQty(inCart.qty)} {unitLabels[inCart.unit]}
+                  </span>
+                )}
                 <button
                   type="button"
                   onClick={() => addToCart(p)}
                   className="block w-full p-3 text-left"
                 >
-                  <p className="text-sm font-semibold text-gray-900 leading-snug line-clamp-2">
+                  <p className="pr-10 text-sm font-semibold text-gray-900 leading-snug line-clamp-2">
                     {p.name}
                   </p>
                   <p className="mt-1 text-xs text-gray-400">
