@@ -55,7 +55,7 @@ Sasaran jangka panjang: **satu sumber data (single source of truth)** untuk penj
 | M-10 | BOM & Produksi | Resep barang jadi, perencanaan produksi, pemakaian bahan, terapkan HPP |
 | M-11 | Laporan | Omzet (hari/bulan/30 hari), grafik, metode pembayaran, produk terlaris, hutang–piutang |
 | M-12 | Pengaturan & Pengguna | Identitas toko (struk), tarif pajak, manajemen pengguna & peran |
-| M-13 | Penjualan Digital | Token listrik, tagihan pascabayar, penarikan Dana & layanan lain; jenis extensible, biaya admin, **satu saldo modal gabung** (top-up Owner), transaksi dicatat bersama barang di POS (satu invoice), keuntungan = admin − modal |
+| M-13 | Penjualan Digital | Token listrik, tagihan pascabayar, penarikan Dana & layanan lain; jenis extensible, biaya admin, **satu saldo modal gabung** (top-up Owner), transaksi dicatat bersama barang di POS (satu invoice), keuntungan = (nominal + admin) − modal |
 
 ---
 
@@ -88,6 +88,7 @@ Aturan: **pengguna pertama** yang terdaftar otomatis menjadi **Owner**; pengguna
 ### M-03 Master Produk & Kategori
 - **FR-09** CRUD kategori (soft delete / cek pemakaian).
 - **FR-10** CRUD produk: nama, SKU, barcode, kategori, satuan, stok & stok minimal, harga modal, harga retail/grosir/reseller, status aktif.
+- **FR-63** **Scan barcode kamera** pada form Tambah/Ubah produk: tombol "Scan" membuka kamera, hasil scan otomatis mengisi kolom barcode.
 - **FR-10a** Multi-satuan per produk: satuan utama + daftar satuan lain dengan **faktor konversi** (mis. beras: utama `kg`, `karung`=25, `ltr`=0.8) dan **harga per satuan** (retail/grosir/reseller). Harga modal diisi per satuan utama.
 - **FR-10b** POS & pembelian mendukung jual/beli dalam satuan mana pun: qty desimal untuk `kg`/`ltr`, pemilihan satuan di keranjang, cek stok berdasar pemakaian stok (qty × faktor) terhadap saldo satuan utama.
 - **FR-11** Filter produk: pencarian (nama/SKU/barcode), kategori, status, stok menipis.
@@ -116,6 +117,9 @@ Aturan: **pengguna pertama** yang terdaftar otomatis menjadi **Owner**; pengguna
 - **FR-26** Struk dicetak (browser print) dengan identitas toko & footer dari Pengaturan.
 - **FR-51** **Tambah pelanggan cepat dari POS**: kasir membuat pelanggan baru (nama wajib + telepon opsional) tepat di langkah pembayaran; pelanggan baru langsung terpilih.
 - **FR-52** **Pembeda pelanggan**: dropdown POS menampilkan nama + pengenal (telepon/kota/alamat) agar nama sama tapi orang berbeda tidak tertukar.
+- **FR-58** **Chip satuan di kartu produk**: kartu menampilkan daftar satuan tersedia beserta faktor konversi per produk (mis. `1 kg = 0,89 ltr`); kasir memilih satuan langsung dari kartu saat menambah produk.
+- **FR-59** **Penanda barang di keranjang**: kartu produk yang sudah masuk keranjang diberi highlight hijau (border emerald) dan **badge jumlah + satuan** di pojok kanan atas (mis. `2 kg`); badge sinkron live dengan perubahan qty/satuan di keranjang.
+- **FR-60** **Produk terpilih ke atas**: produk yang sudah ada di keranjang otomatis dipindah ke urutan teratas grid (alfabetis di antara sesamanya; pencarian tetap berlaku).
 
 ### M-07 Penjualan
 - **FR-27** Daftar penjualan (cari no. invoice, filter status, urut terbaru).
@@ -145,6 +149,8 @@ Aturan: **pengguna pertama** yang terdaftar otomatis menjadi **Owner**; pengguna
 - **FR-43** Metode pembayaran bulan ini (distribusi & proporsi).
 - **FR-44** Produk terlaris 30 hari (qty & revenue).
 - **FR-45** Piutang pelanggan & hutang supplier, dengan tautan "Bayar" untuk supplier.
+- **FR-61** Kartu **"Penjualan Digital"** di Laporan: omzet, profit, breakdown per jenis layanan, dan 5 transaksi digital terbaru.
+- **FR-62** **Ekspor laporan (CSV, BOM UTF-8)** dengan rentang tanggal (dari/sampai); isi tiga seksi: invoice, rincian barang, rincian digital.
 
 ### M-12 Pengaturan & Pengguna
 - **FR-46** Pengaturan toko: nama, alamat, telepon, email, tarif pajak, mata uang, footer struk.
@@ -180,7 +186,7 @@ Aturan: **pengguna pertama** yang terdaftar otomatis menjadi **Owner**; pengguna
 | BR-14 | HPP produk juga bisa dihitung dari order produksi (bukan hanya pembelian). Urutan: harga beli rata-rata untuk produk beli; cost produksi untuk barang jadi. |
 | BR-15 | **Nomor telepon pelanggan bersifat unik** (index parsial; boleh kosong) — nama boleh sama antar orang, dibedakan lewat telepon/kota/alamat & tampilan dropdown. |
 | BR-16 | **Pelunasan piutang boleh sebagian**; saldo tidak boleh negatif; hanya peran **owner & cashier** yang mencatat. |
-| BR-17 | Transaksi digital: **keuntungan = biaya admin − biaya modal**; total ditagih ke pelanggan = nominal + biaya admin; digabung ke subtotal invoice POS (diskon berlaku atas total gabungan). |
+| BR-17 | Transaksi digital: **keuntungan = (nominal + biaya admin) − biaya modal**; total ditagih ke pelanggan = nominal + biaya admin; digabung ke subtotal invoice POS (diskon berlaku atas total gabungan). Konvensi jenis cashout: isi `cost` = nominal sehingga keuntungan = biaya admin. |
 | BR-18 | Jenis `reduces_balance` memotong **saldo modal gabung** (`digital_modal`) sebesar biaya modal; transaksi **diblokir bila saldo tidak cukup**; jenis cashout tidak memotong saldo. |
 | BR-19 | **Top-up modal** dan **kelola jenis digital** hanya Owner (RPC security definer); pencatatan transaksi (produk + digital) oleh Owner & Kasir via POS. |
 
@@ -280,3 +286,8 @@ Prioritas yang disarankan:
 | 2026-09-10 | v1.1 | **Modul Penjualan Digital (M-13)**: jenis extensible + saldo modal per jenis (top-up Owner) + pencatatan transaksi (admin & modal) — FR-53..FR-57, BR-17..BR-19. | `supabase/migrations/digital_sales.sql`; `web/src/app/(app)/digital/`; `web/src/app/actions/digital.ts` |
 | 2026-09-10 | v1.2 | **Penjualan Digital terintegrasi POS**: saldo modal gabung (`digital_modal`), transaksi digital masuk keranjang POS & satu invoice dengan barang (barang digital bisa jadi satu-satunya isi), halaman Digital disederhanakan (modal gabung, kelola jenis, riwayat dgn invoice). | `supabase/migrations/digital_sales_v2.sql`; `web/src/components/pos/POSClient.tsx`; `web/src/app/(app)/digital/` |
 | 2026-09-10 | v1.3 | **Multi-satuan produk**: stok desimal dalam satuan utama, konversi per produk (`karung`/`kg`/`ltr`), harga per satuan, jual & beli lintas satuan di POS dan pembelian. | `supabase/migrations/product_units.sql`; `web/src/components/forms/ProductUnitsEditor.tsx`; `web/src/components/pos/POSClient.tsx` |
+| 2026-09-24 | v1.4 | **Laporan Penjualan Digital** (kartu omzet/profit/breakdown per jenis) + **ekspor laporan CSV** dengan rentang tanggal (seksi invoice, barang, digital) — FR-61/FR-62. | `web/src/app/actions/reports.ts`; `web/src/components/reports/ExportReportButton.tsx`; `web/src/app/(app)/reports/page.tsx` |
+| 2026-09-24 | v1.4 | **Perbaikan rumus profit digital**: keuntungan = `(nominal + biaya admin) − biaya modal` (sebelumnya `admin − modal`); backfill transaksi lama; BR-17 di-update. | `supabase/migrations/digital_profit_formula.sql` |
+| 2026-09-24 | v1.4 | **POS: chip satuan di kartu produk**, **badge jumlah + satuan** untuk barang di keranjang, dan **produk terpilih ke atas** grid — FR-58/FR-59/FR-60. | `web/src/components/pos/POSClient.tsx` |
+| 2026-09-24 | v1.4 | **Scan barcode kamera** di form Tambah/Ubah produk (kolom barcode) — FR-63. | `web/src/components/forms/BarcodeField.tsx`; `web/src/components/pos/BarcodeScanner.tsx` |
+| 2026-09-24 | v1.4 | Perbaikan internal: view `v_sale_items` dibuat ulang agar konsisten dengan model stok desimal multi-satuan. | `supabase/migrations/product_units.sql` |
