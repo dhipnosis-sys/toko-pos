@@ -1,6 +1,7 @@
 import { Card, Label, Input, Select, Textarea, btn } from "@/components/ui";
 import { LinkBack } from "@/components/Flash";
 import ProductUnitsEditor from "@/components/forms/ProductUnitsEditor";
+import BarcodeField from "@/components/forms/BarcodeField";
 import type { ProductUnitRow } from "@/lib/types";
 
 export function ProductFields({
@@ -66,8 +67,7 @@ export function ProductFields({
         <Input id="sku" name="sku" defaultValue={defaults?.sku} required placeholder="contoh: KSG-001" />
       </div>
       <div>
-        <Label htmlFor="barcode">Barcode</Label>
-        <Input id="barcode" name="barcode" defaultValue={defaults?.barcode || ""} placeholder="scan / kode unik" />
+        <BarcodeField defaultValue={defaults?.barcode || ""} />
       </div>
       <div className="grid grid-cols-2 gap-3">
         <div>
