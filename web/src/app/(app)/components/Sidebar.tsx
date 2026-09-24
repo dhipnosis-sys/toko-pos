@@ -13,6 +13,7 @@ import {
   Truck,
   Users,
   ClipboardList,
+  ReceiptText,
   BarChart3,
   FlaskConical,
   Factory,
@@ -21,34 +22,71 @@ import {
   LogOut,
   Menu,
   X,
+  ChevronDown,
+  ChevronRight,
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import type { Profile } from "@/lib/types";
+
+type Role = "owner" | "cashier" | "warehouse";
 
 type NavItem = {
   href: string;
   label: string;
   icon: React.ComponentType<{ className?: string }>;
-  roles: ("owner" | "cashier" | "warehouse")[];
+  roles: Role[];
 };
 
-const NAV_ITEMS: NavItem[] = [
-  { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard, roles: ["owner", "cashier", "warehouse"] },
-  { href: "/pos", label: "Kasir (POS)", icon: ShoppingCart, roles: ["owner", "cashier"] },
-  { href: "/digital", label: "Digital", icon: Smartphone, roles: ["owner", "cashier"] },
-  { href: "/products", label: "Produk", icon: Package, roles: ["owner", "warehouse"] },
-  { href: "/price-history", label: "Riwayat Harga", icon: History, roles: ["owner", "warehouse"] },
-  { href: "/categories", label: "Kategori", icon: Tags, roles: ["owner", "warehouse"] },
-  { href: "/suppliers", label: "Supplier", icon: Truck, roles: ["owner", "warehouse"] },
-  { href: "/customers", label: "Pelanggan", icon: Users, roles: ["owner", "cashier"] },
-  { href: "/purchases", label: "Pembelian", icon: ClipboardList, roles: ["owner", "warehouse"] },
-  { href: "/sales", label: "Penjualan", icon: BarChart3, roles: ["owner", "cashier"] },
-  { href: "/reports", label: "Laporan", icon: BarChart3, roles: ["owner", "cashier"] },
-  { href: "/bom", label: "Bill of Material", icon: FlaskConical, roles: ["owner", "warehouse"] },
-  { href: "/production", label: "Produksi", icon: Factory, roles: ["owner", "warehouse"] },
-  { href: "/settings", label: "Pengaturan", icon: Settings, roles: ["owner"] },
-  { href: "/users", label: "Pengguna", icon: UserCog, roles: ["owner"] },
-  { href: "/profile", label: "Profil", icon: UserCog, roles: ["owner", "cashier", "warehouse"] },
+type NavGroup = {
+  title?: string;
+  items: NavItem[];
+};
+
+const NAV_GROUPS: NavGroup[] = [
+  {
+    items: [
+      { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard, roles: ["owner", "cashier", "warehouse"] },
+      { href: "/pos", label: "Kasir (POS)", icon: ShoppingCart, roles: ["owner", "cashier"] },
+      { href: "/digital", label: "Digital", icon: Smartphone, roles: ["owner", "cashier"] },
+    ],
+  },
+  {
+    title: "Stok",
+    items: [
+      { href: "/products", label: "Produk", icon: Package, roles: ["owner", "warehouse"] },
+      { href: "/categories", label: "Kategori", icon: Tags, roles: ["owner", "warehouse"] },
+      { href: "/suppliers", label: "Supplier", icon: Truck, roles: ["owner", "warehouse"] },
+      { href: "/purchases", label: "Pembelian", icon: ClipboardList, roles: ["owner", "warehouse"] },
+    ],
+  },
+  {
+    items: [
+      { href: "/customers", label: "Pelanggan", icon: Users, roles: ["owner", "cashier"] },
+    ],
+  },
+  {
+    title: "Laporan",
+    items: [
+      { href: "/reports", label: "Laporan", icon: BarChart3, roles: ["owner", "cashier"] },
+      { href: "/sales", label: "Penjualan", icon: ReceiptText, roles: ["owner", "cashier"] },
+      { href: "/price-history", label: "Riwayat Harga", icon: History, roles: ["owner", "warehouse"] },
+    ],
+  },
+  {
+    title: "Produksi",
+    items: [
+      { href: "/bom", label: "Bill of Material", icon: FlaskConical, roles: ["owner", "warehouse"] },
+      { href: "/production", label: "Produksi", icon: Factory, roles: ["owner", "warehouse"] },
+    ],
+  },
+  {
+    title: "Pengaturan",
+    items: [
+      { href: "/settings", label: "Pengaturan", icon: Settings, roles: ["owner"] },
+      { href: "/users", label: "Pengguna", icon: UserCog, roles: ["owner"] },
+      { href: "/profile", label: "Profil", icon: UserCog, roles: ["owner", "cashier", "warehouse"] },
+    ],
+  },
 ];
 
 const roleLabels: Record<string, string> = {
@@ -61,8 +99,13 @@ export function Sidebar({ profile }: { profile: Profile }) {
   const pathname = usePathname();
   const router = useRouter();
   const [open, setOpen] = useState(false);
+  const [openGroups, setOpenGroups] = useState<string[]>([]);
 
-  const items = NAV_ITEMS.filter((i) => i.roles.includes(profile.role));
+  function toggleGroup(title: string) {
+    setOpenGroups((prev) =>
+      prev.includes(title) ? prev.filter((t) => t !== title) : [...prev, title]
+    );
+  }
 
   async function logout() {
     const supabase = createClient();
@@ -73,27 +116,64 @@ export function Sidebar({ profile }: { profile: Profile }) {
 
   function NavList({ onNavigate }: { onNavigate?: () => void }) {
     return (
-      <nav className="flex-1 overflow-y-auto px-3 py-4 space-y-1">
-        {items.map((item) => {
-          const active =
-            pathname === item.href || pathname.startsWith(item.href + "/");
+      <nav className="flex-1 overflow-y-auto px-3 py-4 space-y-3">
+        {NAV_GROUPS.map((group, gi) => {
+          const items = group.items.filter((i) => i.roles.includes(profile.role));
+          if (items.length === 0) return null;
+
+          const hasActive = items.some(
+            (i) => pathname === i.href || pathname.startsWith(i.href + "/")
+          );
+          const expanded =
+            !group.title || hasActive || openGroups.includes(group.title);
+
+          if (!group.title) {
+            return (
+              <div key={gi} className="space-y-1">
+                {items.map((item) => renderItem(item, onNavigate))}
+              </div>
+            );
+          }
+
+          const GroupIcon = hasActive ? ChevronDown : ChevronRight;
           return (
-            <Link
-              key={item.href}
-              href={item.href}
-              onClick={onNavigate}
-              className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition ${
-                active
-                  ? "bg-white/20 text-white"
-                  : "text-emerald-50/80 hover:bg-white/10 hover:text-white"
-              }`}
-            >
-              <item.icon className="w-5 h-5 shrink-0" />
-              {item.label}
-            </Link>
+            <div key={group.title}>
+              <button
+                type="button"
+                onClick={() => toggleGroup(group.title!)}
+                className={`w-full flex items-center justify-between px-3 py-1.5 mb-1 rounded-lg text-[11px] font-bold uppercase tracking-wider transition ${
+                  hasActive
+                    ? "text-white"
+                    : "text-emerald-100/60 hover:text-white"
+                }`}
+              >
+                {group.title}
+                <GroupIcon className="w-4 h-4" />
+              </button>
+              {expanded && <div className="space-y-1">{items.map((item) => renderItem(item, onNavigate))}</div>}
+            </div>
           );
         })}
       </nav>
+    );
+  }
+
+  function renderItem(item: NavItem, onNavigate?: () => void) {
+    const active = pathname === item.href || pathname.startsWith(item.href + "/");
+    return (
+      <Link
+        key={item.href}
+        href={item.href}
+        onClick={onNavigate}
+        className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition ${
+          active
+            ? "bg-white/20 text-white"
+            : "text-emerald-50/80 hover:bg-white/10 hover:text-white"
+        }`}
+      >
+        <item.icon className="w-5 h-5 shrink-0" />
+        {item.label}
+      </Link>
     );
   }
 
