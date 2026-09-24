@@ -99,12 +99,10 @@ export function Sidebar({ profile }: { profile: Profile }) {
   const pathname = usePathname();
   const router = useRouter();
   const [open, setOpen] = useState(false);
-  const [openGroups, setOpenGroups] = useState<string[]>([]);
+  const [forced, setForced] = useState<Record<string, boolean>>({});
 
-  function toggleGroup(title: string) {
-    setOpenGroups((prev) =>
-      prev.includes(title) ? prev.filter((t) => t !== title) : [...prev, title]
-    );
+  function toggleGroup(title: string, current: boolean) {
+    setForced((prev) => ({ ...prev, [title]: !current }));
   }
 
   async function logout() {
@@ -124,8 +122,6 @@ export function Sidebar({ profile }: { profile: Profile }) {
           const hasActive = items.some(
             (i) => pathname === i.href || pathname.startsWith(i.href + "/")
           );
-          const expanded =
-            !group.title || hasActive || openGroups.includes(group.title);
 
           if (!group.title) {
             return (
@@ -135,12 +131,13 @@ export function Sidebar({ profile }: { profile: Profile }) {
             );
           }
 
-          const GroupIcon = hasActive ? ChevronDown : ChevronRight;
+          const expanded = forced[group.title] ?? hasActive;
+          const GroupIcon = expanded ? ChevronDown : ChevronRight;
           return (
             <div key={group.title}>
               <button
                 type="button"
-                onClick={() => toggleGroup(group.title!)}
+                onClick={() => toggleGroup(group.title!, expanded)}
                 className={`w-full flex items-center justify-between px-3 py-1.5 mb-1 rounded-lg text-[11px] font-bold uppercase tracking-wider transition ${
                   hasActive
                     ? "text-white"
