@@ -51,6 +51,8 @@ export async function proxy(request: NextRequest) {
 
 export const config = {
   matcher: [
-    "/((?!_next/static|_next/image|favicon.ico|.*\\.(?:png|svg|jpg|jpeg|webp|gif)$).*)",
+    // Pengecualian: aset PWA harus bisa diambil tanpa login, kalau tidak
+    // manifest/service worker akan di-redirect ke /login dan instalasi gagal.
+    "/((?!_next/static|_next/image|favicon\\.ico|sw\\.js|offline\\.html|manifest\\.webmanifest|.*\\.(?:png|svg|jpg|jpeg|webp|gif)$).*)",
   ],
 };
