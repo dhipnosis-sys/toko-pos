@@ -27,7 +27,12 @@ body {
   }
 }
 
-/* Receipt print — only receipt content visible when printing */
+/* Receipt print — 58mm thermal, no margins. Only receipt content visible. */
+@page {
+  size: 58mm auto;
+  margin: 0;
+}
+
 @media print {
   body * {
     visibility: hidden;
@@ -40,7 +45,16 @@ body {
     position: absolute;
     left: 0;
     top: 0;
-    width: 100%;
+    width: 58mm !important;
+    max-width: none !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    background: transparent;
+  }
+  /* Kill any extra whitespace from layout */
+  body,
+  .min-h-screen {
+    min-height: auto !important;
   }
 }
 

@@ -2,8 +2,9 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentUser } from "@/lib/dal";
-import { PrintButton } from "@/components/PrintButton";
+import { ReceiptPrinter } from "@/components/ReceiptPrinter";
 import { rupiah, formatDateTime, getSetting, unitLabels, paymentMethodLabels } from "@/lib/utils";
+import type { ReceiptData, ReceiptItem } from "@/lib/escpos";
 
 export default async function SalePrintPage(props: PageProps<"/sales/[id]/print">) {
   await getCurrentUser();
@@ -33,21 +34,65 @@ export default async function SalePrintPage(props: PageProps<"/sales/[id]/print"
   const storeAddress = getSetting(map, "store_address");
   const storePhone = getSetting(map, "store_phone");
 
+  const digitalTotal = (digitalSales || []).reduce(
+    (a: number, d: any) => a + Number(d.total_charged || 0),
+    0
+  );
+
+  // Data terstruktur untuk printer Bluetooth (ESC/POS 58mm).
+  const receiptItems: ReceiptItem[] = [
+    ...(sale.items || []).map((it: any) => ({
+      name: it.product?.name || "Produk #" + it.product_id,
+      qty: Number(it.quantity),
+      unit: it.unit || it.product?.unit || "pcs",
+      unitPrice: rupiah(it.unit_price),
+      subtotal: rupiah(it.subtotal),
+      note: unitLabels[it.unit || it.product?.unit || "pcs"],
+    })),
+    ...(digitalSales || []).map((d: any) => ({
+      name: d.digital_type?.name || "Digital",
+      qty: 1,
+      unit: "pcs",
+      unitPrice: rupiah(Number(d.amount) + Number(d.admin_fee)),
+      subtotal: rupiah(d.total_charged),
+      note: d.customer_identifier || undefined,
+    })),
+  ];
+
+  const receipt: ReceiptData = {
+    storeName,
+    storeAddress: storeAddress || undefined,
+    storePhone: storePhone || undefined,
+    invoice: sale.invoice_number,
+    date: formatDateTime(sale.created_at),
+    cashier: sale.profile?.name || "-",
+    customer: sale.customer?.name || "Umum",
+    payment: paymentMethodLabels[sale.payment_method] || sale.payment_method,
+    items: receiptItems,
+    subtotal: rupiah(sale.subtotal),
+    discount: Number(sale.discount) > 0 ? rupiah(sale.discount) : undefined,
+    digitalTotal: digitalTotal > 0 ? rupiah(digitalTotal) : undefined,
+    total: rupiah(sale.grand_total),
+    paid: rupiah(sale.paid_amount),
+    change: Number(sale.change_amount) > 0 ? rupiah(sale.change_amount) : undefined,
+    footer1: "Terima kasih atas kunjungan Anda!",
+    footer2: "Barang yang sudah dibeli tidak dapat ditukar.",
+  };
+
   return (
     <div className="min-h-screen bg-gray-100 p-4 print:bg-white print:p-0">
       <div className="mx-auto max-w-sm print:max-w-none">
-        <div className="mb-4 hidden print:block" />
-        <div className="no-print mb-4 flex justify-center gap-2">
-          <PrintButton />
+        <div className="no-print mb-4 space-y-2">
+          <ReceiptPrinter receipt={receipt} />
           <Link
             href={"/sales/" + sale.id}
-            className="rounded-lg bg-white border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
+            className="block rounded-lg bg-white border border-gray-300 px-4 py-2 text-center text-sm font-medium text-gray-700 hover:bg-gray-50"
           >
             Kembali
           </Link>
         </div>
 
-        <div className="receipt-print rounded-xl bg-white p-5 shadow print:rounded-none print:shadow-none print:p-2">
+        <div className="receipt-print mx-auto w-full max-w-sm rounded-xl bg-white p-5 shadow print:w-[58mm] print:max-w-none print:rounded-none print:p-0 print:shadow-none">
           <div className="text-center">
             <h1 className="text-lg font-bold uppercase tracking-wide text-gray-900">{storeName}</h1>
             {storeAddress && <p className="text-xs text-gray-600">{storeAddress}</p>}
@@ -136,11 +181,7 @@ export default async function SalePrintPage(props: PageProps<"/sales/[id]/print"
             {(digitalSales || []).length > 0 && (
               <div className="flex justify-between">
                 <span>Layanan Digital</span>
-                <span>
-                  {rupiah(
-                    (digitalSales as any[]).reduce((a: number, d: any) => a + Number(d.total_charged || 0), 0)
-                  )}
-                </span>
+                <span>{rupiah(digitalTotal)}</span>
               </div>
             )}
             <div className="flex justify-between text-sm font-bold text-gray-900">
