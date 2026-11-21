@@ -3,8 +3,17 @@ import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentUser } from "@/lib/dal";
 import { ReceiptPrinter } from "@/components/ReceiptPrinter";
-import { rupiah, formatDateTime, getSetting, unitLabels, paymentMethodLabels } from "@/lib/utils";
-import type { ReceiptData, ReceiptItem } from "@/lib/escpos";
+import { rupiah, getSetting, unitLabels, paymentMethodLabels } from "@/lib/utils";
+import { buildReceiptLines, type ReceiptData, type ReceiptItem } from "@/lib/escpos";
+
+/** dd/mm/yy hh:mm — format tanggal pada struk thermal. */
+function receiptDate(iso: string | null | undefined): string {
+  if (!iso) return "-";
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return "-";
+  const p = (n: number) => String(n).padStart(2, "0");
+  return `${p(d.getDate())}/${p(d.getMonth() + 1)}/${String(d.getFullYear()).slice(-2)} ${p(d.getHours())}:${p(d.getMinutes())}`;
+}
 
 export default async function SalePrintPage(props: PageProps<"/sales/[id]/print">) {
   await getCurrentUser();
@@ -64,7 +73,7 @@ export default async function SalePrintPage(props: PageProps<"/sales/[id]/print"
     storeAddress: storeAddress || undefined,
     storePhone: storePhone || undefined,
     invoice: sale.invoice_number,
-    date: formatDateTime(sale.created_at),
+    date: receiptDate(sale.created_at),
     cashier: sale.profile?.name || "-",
     customer: sale.customer?.name || "Umum",
     payment: paymentMethodLabels[sale.payment_method] || sale.payment_method,
@@ -75,8 +84,8 @@ export default async function SalePrintPage(props: PageProps<"/sales/[id]/print"
     total: rupiah(sale.grand_total),
     paid: rupiah(sale.paid_amount),
     change: Number(sale.change_amount) > 0 ? rupiah(sale.change_amount) : undefined,
-    footer1: "Terima kasih atas kunjungan Anda!",
-    footer2: "Barang yang sudah dibeli tidak dapat ditukar.",
+    footer1: "Terima kasih sudah belanja!",
+    footer2: "Barang yang sudah dibeli tidak dapat dikembalikan",
   };
 
   return (
@@ -92,121 +101,7 @@ export default async function SalePrintPage(props: PageProps<"/sales/[id]/print"
           </Link>
         </div>
 
-        <div className="receipt-print mx-auto w-full max-w-sm rounded-xl bg-white p-5 shadow print:w-[58mm] print:max-w-none print:rounded-none print:p-0 print:shadow-none">
-          <div className="text-center">
-            <h1 className="text-lg font-bold uppercase tracking-wide text-gray-900">{storeName}</h1>
-            {storeAddress && <p className="text-xs text-gray-600">{storeAddress}</p>}
-            {storePhone && <p className="text-xs text-gray-600">Telp: {storePhone}</p>}
-          </div>
-
-          <div className="my-3 border-t border-dashed border-gray-300" />
-
-          <div className="text-xs text-gray-700 space-y-0.5">
-            <div className="flex justify-between">
-              <span>Invoice</span>
-              <span className="font-medium">{sale.invoice_number}</span>
-            </div>
-            <div className="flex justify-between">
-              <span>Tanggal</span>
-              <span>{formatDateTime(sale.created_at)}</span>
-            </div>
-            <div className="flex justify-between">
-              <span>Kasir</span>
-              <span>{sale.profile?.name || "-"}</span>
-            </div>
-            <div className="flex justify-between">
-              <span>Pelanggan</span>
-              <span>{sale.customer?.name || "Umum"}</span>
-            </div>
-            <div className="flex justify-between">
-              <span>Metode</span>
-              <span>{paymentMethodLabels[sale.payment_method] || sale.payment_method}</span>
-            </div>
-          </div>
-
-          <div className="my-3 border-t border-dashed border-gray-300" />
-
-          <table className="w-full text-xs text-gray-800">
-            <thead>
-              <tr className="border-b border-gray-200 text-gray-500">
-                <th className="pb-1 text-left font-medium">Item</th>
-                <th className="pb-1 text-center font-medium">Qty</th>
-                <th className="pb-1 text-right font-medium">Harga</th>
-                <th className="pb-1 text-right font-medium">Subtotal</th>
-              </tr>
-            </thead>
-            <tbody>
-              {(sale.items || []).map((it: any) => (
-                <tr key={it.id}>
-                  <td className="py-1">
-                    <div className="max-w-[140px] leading-tight">
-                      {it.product?.name || "Produk #" + it.product_id}
-                    </div>
-                    <div className="text-[10px] text-gray-400">
-                      {unitLabels[it.unit || it.product?.unit || "pcs"]}
-                    </div>
-                  </td>
-                  <td className="py-1 text-center">{it.quantity}</td>
-                  <td className="py-1 text-right">{rupiah(it.unit_price)}</td>
-                  <td className="py-1 text-right">{rupiah(it.subtotal)}</td>
-                </tr>
-              ))}
-              {(digitalSales || []).map((d: any) => (
-                <tr key={"d" + d.id}>
-                  <td className="py-1">
-                    <div className="max-w-[140px] leading-tight">{d.digital_type?.name || "Digital"}</div>
-                    <div className="text-[10px] text-gray-400">{d.customer_identifier}</div>
-                  </td>
-                  <td className="py-1 text-center">-</td>
-                  <td className="py-1 text-right">{rupiah(d.amount + d.admin_fee)}</td>
-                  <td className="py-1 text-right">{rupiah(d.total_charged)}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-
-          <div className="my-3 border-t border-dashed border-gray-300" />
-
-          <div className="space-y-1 text-xs text-gray-800">
-            <div className="flex justify-between">
-              <span>Subtotal</span>
-              <span>{rupiah(sale.subtotal)}</span>
-            </div>
-            {Number(sale.discount) > 0 && (
-              <div className="flex justify-between">
-                <span>Diskon</span>
-                <span>-{rupiah(sale.discount)}</span>
-              </div>
-            )}
-            {(digitalSales || []).length > 0 && (
-              <div className="flex justify-between">
-                <span>Layanan Digital</span>
-                <span>{rupiah(digitalTotal)}</span>
-              </div>
-            )}
-            <div className="flex justify-between text-sm font-bold text-gray-900">
-              <span>Total</span>
-              <span>{rupiah(sale.grand_total)}</span>
-            </div>
-            <div className="flex justify-between">
-              <span>Dibayar</span>
-              <span>{rupiah(sale.paid_amount)}</span>
-            </div>
-            {Number(sale.change_amount) > 0 && (
-              <div className="flex justify-between">
-                <span>Kembalian</span>
-                <span>{rupiah(sale.change_amount)}</span>
-              </div>
-            )}
-          </div>
-
-          <div className="my-3 border-t border-dashed border-gray-300" />
-          <p className="text-center text-xs text-gray-600">
-            Terima kasih atas kunjungan Anda!
-            <br />
-            Barang yang sudah dibeli tidak dapat ditukar.
-          </p>
-        </div>
+        <pre className="receipt-print mx-auto w-full max-w-sm overflow-hidden whitespace-pre rounded-xl bg-white p-5 font-mono text-xs leading-tight text-gray-900 shadow print:w-[58mm] print:max-w-none print:rounded-none print:p-0 print:text-[10px] print:shadow-none">{buildReceiptLines(receipt).map((line, i) => (<span key={i} className={line.bold ? "font-bold" : undefined}>{line.text.replace(/\s+$/, "")}{"\n"}</span>))}</pre>
       </div>
     </div>
   );
