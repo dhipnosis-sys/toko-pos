@@ -206,66 +206,88 @@ export function ReceiptPrinter({
     setPrinterName(null);
   };
 
-  if (!available) {
+  // Render fallback + error info even when Web Bluetooth unavailable
+  if (available === false) {
     return (
-      <div className="rounded-lg border border-red-200 bg-red-50 p-3 text-red-700 text-sm flex items-center gap-2">
-        <AlertTriangle className="w-4 h-4 shrink-0" />
-        <span>{error}</span>
+      <div className="space-y-3 no-print">
+        <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-amber-700 text-sm flex items-center gap-2">
+          <AlertTriangle className="w-4 h-4 shrink-0" />
+          <span>Web Bluetooth tidak didukung di browser ini (butuh Chrome/Edge, HTTPS).</span>
+        </div>
+        {/* Fallback */}
+        <div className="border-t border-gray-200 pt-2">
+          <p className="text-xs text-gray-500 mb-2 text-center">
+            Gunakan cetak via browser (dialog sistem) — sudah diatur 58mm tanpa margin.
+          </p>
+          <button
+            type="button"
+            onClick={printBrowser}
+            className="w-full flex items-center justify-center gap-2 rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
+          >
+            <Printer className="w-4 h-4" />
+            Cetak via Browser (Dialog)
+          </button>
+        </div>
       </div>
     );
   }
 
+  // available === null (initial) atau true → render normal
   return (
     <div className="space-y-3 no-print">
       {/* Bluetooth Print */}
-      <button
-        type="button"
-        onClick={printBluetooth}
-        disabled={status !== "idle" && status !== "error" && status !== "success"}
-        className={`w-full flex items-center justify-center gap-2 rounded-lg px-4 py-2.5 text-sm font-medium transition ${
-          status === "sending" || status === "connecting"
-            ? "bg-amber-500 text-white cursor-wait"
-            : status === "success"
-            ? "bg-emerald-600 text-white"
-            : "bg-emerald-600 text-white hover:bg-emerald-700 disabled:opacity-50"
-        }`}
-      >
-        {status === "sending" && <Loader2 className="w-4 h-4 animate-spin" />}
-        {status === "connecting" && <Loader2 className="w-4 h-4 animate-spin" />}
-        {status === "success" && <CheckCircle className="w-4 h-4" />}
-        {status === "error" && <XCircle className="w-4 h-4" />}
-        {(status === "idle" || status === "error") && <Printer className="w-4 h-4" />}
-        <span className="truncate">
-          {status === "idle"
-            ? "Cetak ke Printer Bluetooth"
-            : status === "scanning"
-            ? "Memilih printer…"
-            : status === "connecting"
-            ? "Menghubungkan…"
-            : status === "sending"
-            ? "Mengirim data…"
-            : status === "success"
-            ? "Terkirim ✓"
-            : "Gagal — coba lagi"}
-        </span>
-      </button>
-
-      {/* Printer info & clear */}
-      {printerName && (
-        <div className="flex items-center justify-between text-xs text-gray-500">
-          <span className="flex items-center gap-1">
-            <BluetoothConnected className="w-3 h-3" />
-            Terhubung ke: <span className="font-medium">{printerName}</span>
-          </span>
+      {available && (
+        <>
           <button
             type="button"
-            onClick={clearSaved}
-            className="text-red-500 hover:underline"
-            title="Ganti printer lain"
+            onClick={printBluetooth}
+            disabled={status !== "idle" && status !== "error" && status !== "success"}
+            className={`w-full flex items-center justify-center gap-2 rounded-lg px-4 py-2.5 text-sm font-medium transition ${
+              status === "sending" || status === "connecting"
+                ? "bg-amber-500 text-white cursor-wait"
+                : status === "success"
+                ? "bg-emerald-600 text-white"
+                : "bg-emerald-600 text-white hover:bg-emerald-700 disabled:opacity-50"
+            }`}
           >
-            <Trash2 className="w-3 h-3 inline" />
+            {status === "sending" && <Loader2 className="w-4 h-4 animate-spin" />}
+            {status === "connecting" && <Loader2 className="w-4 h-4 animate-spin" />}
+            {status === "success" && <CheckCircle className="w-4 h-4" />}
+            {status === "error" && <XCircle className="w-4 h-4" />}
+            {(status === "idle" || status === "error") && <Printer className="w-4 h-4" />}
+            <span className="truncate">
+              {status === "idle"
+                ? "Cetak ke Printer Bluetooth"
+                : status === "scanning"
+                ? "Memilih printer…"
+                : status === "connecting"
+                ? "Menghubungkan…"
+                : status === "sending"
+                ? "Mengirim data…"
+                : status === "success"
+                ? "Terkirim ✓"
+                : "Gagal — coba lagi"}
+            </span>
           </button>
-        </div>
+
+          {/* Printer info & clear */}
+          {printerName && (
+            <div className="flex items-center justify-between text-xs text-gray-500">
+              <span className="flex items-center gap-1">
+                <BluetoothConnected className="w-3 h-3" />
+                Terhubung ke: <span className="font-medium">{printerName}</span>
+              </span>
+              <button
+                type="button"
+                onClick={clearSaved}
+                className="text-red-500 hover:underline"
+                title="Ganti printer lain"
+              >
+                <Trash2 className="w-3 h-3 inline" />
+              </button>
+            </div>
+          )}
+        </>
       )}
 
       {/* Fallback */}
