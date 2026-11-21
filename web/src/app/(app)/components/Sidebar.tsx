@@ -26,6 +26,7 @@ import {
   ChevronRight,
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
+import { PushOptIn } from "@/components/pwa/PushOptIn";
 import type { Profile } from "@/lib/types";
 
 type Role = "owner" | "cashier" | "warehouse";
@@ -177,6 +178,7 @@ export function Sidebar({ profile }: { profile: Profile }) {
   function ProfileFooter({ onLogout }: { onLogout?: () => void }) {
     return (
       <div className="px-3 pb-4">
+        <PushOptIn variant="sidebar" />
         <div className="flex items-center gap-2 px-3 py-2.5 rounded-lg bg-black/10">
           <div className="flex-1 min-w-0">
             <p className="text-sm font-semibold text-white truncate">

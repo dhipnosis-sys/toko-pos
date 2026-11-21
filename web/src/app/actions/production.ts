@@ -2,9 +2,11 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
+import { after } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { requireRole } from "@/lib/dal";
 import { invoiceNumber } from "@/lib/utils";
+import { notifyNewlyLowStock, snapshotStock } from "@/lib/notify-triggers";
 
 async function processOrderNumber(supabase: Awaited<ReturnType<typeof createClient>>) {
   for (let i = 0; i < 10; i++) {
@@ -95,8 +97,21 @@ export async function processProduction(id: number) {
   await requireRole(["owner", "warehouse"]);
   const supabase = await createClient();
 
+  // Snapshot stok bahan baku sebelum RPC memakainya.
+  const { data: orderItems } = await supabase
+    .from("production_order_items")
+    .select("product_id")
+    .eq("production_order_id", id);
+  const materialIds = (orderItems || [])
+    .map((i) => i.product_id)
+    .filter((pid): pid is number => typeof pid === "number" && pid > 0);
+  const stockBefore = await snapshotStock(materialIds);
+
   const { error } = await supabase.rpc("process_production", { p_order_id: id });
   if (error) redirect("/production/" + id + "?err=" + encodeURIComponent(error.message));
+
+  after(() => notifyNewlyLowStock(stockBefore, materialIds));
+
   revalidatePath("/production");
   revalidatePath("/production/" + id);
   revalidatePath("/pos");

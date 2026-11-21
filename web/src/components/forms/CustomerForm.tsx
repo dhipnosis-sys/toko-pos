@@ -11,6 +11,7 @@ export function CustomerFields({
     address?: string | null;
     city?: string | null;
     debt_limit?: number;
+    debt_due_date?: string | null;
     notes?: string | null;
   };
 }) {
@@ -47,6 +48,15 @@ export function CustomerFields({
           min={0}
           step={1000}
           defaultValue={defaults?.debt_limit ?? 0}
+        />
+      </div>
+      <div>
+        <Label htmlFor="debt_due_date">Jatuh Tempo Piutang</Label>
+        <Input
+          id="debt_due_date"
+          name="debt_due_date"
+          type="date"
+          defaultValue={defaults?.debt_due_date || ""}
         />
       </div>
       <div>

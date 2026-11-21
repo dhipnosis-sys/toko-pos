@@ -33,6 +33,7 @@ export default async function EditCustomerPage(props: PageProps<"/customers/[id]
           address: customer.address,
           city: customer.city,
           debt_limit: customer.debt_limit,
+          debt_due_date: customer.debt_due_date,
           notes: customer.notes,
         }}
         submitLabel="Simpan Perubahan"

@@ -2,8 +2,17 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
+import { after } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { requireRole } from "@/lib/dal";
+import { checkCustomerOverdue } from "@/lib/notify-triggers";
+
+const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
+
+function parseDueDate(value: FormDataEntryValue | null): string | null {
+  const raw = String(value || "").trim();
+  return DATE_RE.test(raw) ? raw : null;
+}
 
 function parseCustomer(formData: FormData) {
   return {
@@ -13,6 +22,7 @@ function parseCustomer(formData: FormData) {
     address: String(formData.get("address") || "").trim() || null,
     city: String(formData.get("city") || "").trim() || null,
     debt_limit: Math.max(0, Number(formData.get("debt_limit") || 0) || 0),
+    debt_due_date: parseDueDate(formData.get("debt_due_date")),
     notes: String(formData.get("notes") || "").trim() || null,
   };
 }
@@ -69,6 +79,11 @@ export async function recordCustomerPayment(formData: FormData) {
     p_notes: notes,
   });
   if (error) redirect("/customers/" + customerId + "/pay?err=" + encodeURIComponent(error.message));
+
+  // Piutang yang masih tersisa & sudah lewat jatuh tempo → notifikasi
+  // (maksimal 1x per hari per pelanggan).
+  after(() => checkCustomerOverdue(customerId));
+
   revalidatePath("/customers");
   revalidatePath("/customers/" + customerId);
   redirect("/customers/" + customerId + "/pay?ok=saved");

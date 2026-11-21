@@ -2,8 +2,16 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
+import { after } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentUser, requireRole } from "@/lib/dal";
+import {
+  checkCustomerOverdue,
+  notifyNewReceivable,
+  notifyNewlyLowStock,
+  snapshotCustomerDebt,
+  snapshotStock,
+} from "@/lib/notify-triggers";
 
 export async function checkout(formData: FormData) {
   await requireRole(["owner", "cashier"]);
@@ -52,6 +60,13 @@ export async function checkout(formData: FormData) {
     redirect("/pos?err=receivable");
   }
 
+  // Snapshot sebelum transaksi: dipakai untuk memicu notifikasi
+  // (stok yang BARU menipis & selisih piutang) tanpa menghitung ulang rumus POS.
+  const touchedProductIds = items.map((i) => i.product_id);
+  const stockBefore = await snapshotStock(touchedProductIds);
+  const prevDebt =
+    paymentMethod === "receivable" ? await snapshotCustomerDebt(customerId) : null;
+
   const { error } = await supabase.rpc("process_checkout", {
     p_user_id: profile.id,
     p_items: items.length ? items : null,
@@ -64,6 +79,15 @@ export async function checkout(formData: FormData) {
   });
 
   if (error) redirect("/pos?err=" + encodeURIComponent(error.message));
+
+  // Dijalankan setelah respons selesai — tidak menambah latensi checkout,
+  // dan kegagalan pengiriman tidak pernah membatalkan transaksi.
+  after(() => notifyNewlyLowStock(stockBefore, touchedProductIds));
+  if (paymentMethod === "receivable" && customerId) {
+    after(() => notifyNewReceivable(customerId, prevDebt));
+    after(() => checkCustomerOverdue(customerId));
+  }
+
   revalidatePath("/pos");
   revalidatePath("/sales");
   revalidatePath("/dashboard");
