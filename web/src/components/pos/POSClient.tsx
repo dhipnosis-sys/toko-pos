@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useRef, useState } from "react";
-import { Plus, Minus, Trash2, Search, ScanBarcode, CreditCard, ArrowRight, Check, Zap } from "lucide-react";
+import { Plus, Minus, Trash2, Search, ScanBarcode, CreditCard, ArrowRight, Check, Zap, Printer } from "lucide-react";
 import type { ProductUnit } from "@/lib/types";
 import { rupiah, paymentMethodLabels, unitLabels } from "@/lib/utils";
 import { Card, btn } from "@/components/ui";
@@ -64,6 +64,14 @@ type CartDigital = {
 };
 
 type CartItem = CartProduct | CartDigital;
+
+type CheckoutSuccess = {
+  saleId: number;
+  invoiceNumber: string;
+  total: number;
+  paid: number;
+  change: number;
+};
 
 const tierLabels: Record<Tier, string> = {
   retail: "Retail",
@@ -150,6 +158,7 @@ export default function POSClient({
   const [notes, setNotes] = useState("");
   const [pending, setPending] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
+  const [success, setSuccess] = useState<CheckoutSuccess | null>(null);
 
   const [digitalFormOpen, setDigitalFormOpen] = useState<number | null>(null);
   const [digIdentifier, setDigIdentifier] = useState("");
@@ -477,7 +486,28 @@ export default function POSClient({
     fd.set("paid_amount", String(paidNum));
     fd.set("discount", String(discountNum));
     if (notes) fd.set("notes", notes);
-    await checkout(fd);
+    let result;
+    try {
+      result = await checkout(fd);
+    } catch (e) {
+      setPending(false);
+      setErrorMsg(e instanceof Error ? e.message : "Gagal menyimpan transaksi");
+      return;
+    }
+    setPending(false);
+    if (!result.ok) {
+      setErrorMsg(result.error);
+      return;
+    }
+    clearCart();
+    setStep("items");
+    setSuccess({
+      saleId: result.saleId,
+      invoiceNumber: result.invoiceNumber,
+      total: result.total,
+      paid: result.paid,
+      change: result.change,
+    });
   }
 
   return (
@@ -1075,6 +1105,55 @@ export default function POSClient({
       </div>
 
       {showScanner && <BarcodeScanner onScan={handleScan} onClose={() => setShowScanner(false)} />}
+
+      {success && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div className="w-full max-w-sm space-y-4 rounded-2xl bg-white p-6 shadow-xl">
+            <div className="space-y-1 text-center">
+              <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-emerald-100 text-emerald-600">
+                <Check size={24} />
+              </div>
+              <h2 className="text-lg font-semibold text-gray-900">Transaksi berhasil</h2>
+              <p className="text-sm text-gray-500">{success.invoiceNumber}</p>
+            </div>
+
+            <div className="space-y-1.5 rounded-lg bg-gray-50 p-3 text-sm">
+              <div className="flex justify-between">
+                <span className="text-gray-500">Total</span>
+                <span className="font-semibold text-gray-900">{rupiah(success.total)}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-gray-500">Tunai</span>
+                <span className="text-gray-900">{rupiah(success.paid)}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-gray-500">Kembali</span>
+                <span className="text-gray-900">{rupiah(success.change)}</span>
+              </div>
+            </div>
+
+            <a
+              href={`/sales/${success.saleId}/print`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className={btn.primary + " w-full"}
+            >
+              <Printer size={16} /> Cetak Struk
+            </a>
+            <button
+              type="button"
+              onClick={() => setSuccess(null)}
+              className={btn.secondary + " w-full"}
+            >
+              Transaksi Baru
+            </button>
+            <p className="text-center text-[11px] leading-snug text-gray-400">
+              Struk dibuka di tab baru. Tekan tombol <b>RawBT</b> di halaman tersebut untuk
+              mencetak.
+            </p>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

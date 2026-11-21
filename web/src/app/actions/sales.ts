@@ -1,7 +1,6 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { redirect } from "next/navigation";
 import { after } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentUser, requireRole } from "@/lib/dal";
@@ -47,7 +46,9 @@ export async function checkout(formData: FormData) {
     digital.push({ type_id: typeId, identifier, amount, admin_fee: adminFee, cost });
   }
 
-  if (items.length === 0 && digital.length === 0) redirect("/pos?err=items");
+  if (items.length === 0 && digital.length === 0) {
+    return { ok: false as const, error: "Keranjang masih kosong" };
+  }
 
   const customerRaw = String(formData.get("customer_id") || "");
   const customerId = customerRaw ? Number(customerRaw) : null;
@@ -57,7 +58,7 @@ export async function checkout(formData: FormData) {
   const notes = String(formData.get("notes") || "").trim() || null;
 
   if (paymentMethod === "receivable" && !customerId) {
-    redirect("/pos?err=receivable");
+    return { ok: false as const, error: "Pilih pelanggan untuk pembayaran piutang" };
   }
 
   // Snapshot sebelum transaksi: dipakai untuk memicu notifikasi
@@ -67,7 +68,7 @@ export async function checkout(formData: FormData) {
   const prevDebt =
     paymentMethod === "receivable" ? await snapshotCustomerDebt(customerId) : null;
 
-  const { error } = await supabase.rpc("process_checkout", {
+  const { data, error } = await supabase.rpc("process_checkout", {
     p_user_id: profile.id,
     p_items: items.length ? items : null,
     p_digital: digital.length ? digital : null,
@@ -78,7 +79,20 @@ export async function checkout(formData: FormData) {
     p_notes: notes,
   });
 
-  if (error) redirect("/pos?err=" + encodeURIComponent(error.message));
+  if (error) {
+    return { ok: false as const, error: error.message };
+  }
+
+  const result = data as {
+    sale_id?: number | string;
+    invoice_number?: string;
+    grand_total?: number | string;
+    paid_amount?: number | string;
+    change_amount?: number | string;
+  } | null;
+  if (!result?.sale_id) {
+    return { ok: false as const, error: "Transaksi tersimpan, tapi nomor struk tidak diterima. Cek di riwayat Penjualan." };
+  }
 
   // Dijalankan setelah respons selesai — tidak menambah latensi checkout,
   // dan kegagalan pengiriman tidak pernah membatalkan transaksi.
@@ -94,5 +108,13 @@ export async function checkout(formData: FormData) {
   revalidatePath("/products");
   revalidatePath("/customers");
   revalidatePath("/digital");
-  redirect("/sales?ok=saved");
+
+  return {
+    ok: true as const,
+    saleId: Number(result.sale_id),
+    invoiceNumber: String(result.invoice_number || ""),
+    total: Number(result.grand_total || 0),
+    paid: Number(result.paid_amount || 0),
+    change: Number(result.change_amount || 0),
+  };
 }
