@@ -129,3 +129,39 @@ export async function updateOwnProfile(formData: FormData) {
   revalidatePath("/profile");
   redirect("/profile?ok=saved");
 }
+
+export async function changeOwnPassword(formData: FormData): Promise<void> {
+  const profile = await getCurrentUser();
+  const supabase = await createClient();
+
+  const currentPassword = String(formData.get("current_password") || "");
+  const newPassword = String(formData.get("new_password") || "");
+  const confirmPassword = String(formData.get("confirm_password") || "");
+
+  if (!currentPassword || !newPassword || !confirmPassword) {
+    redirect("/profile?err=required");
+  }
+  if (newPassword.length < 6) {
+    redirect("/profile?err=weak");
+  }
+  if (newPassword !== confirmPassword) {
+    redirect("/profile?err=mismatch");
+  }
+
+  // Verifikasi password lama dengan mencoba sign-in ulang
+  const { error: signInError } = await supabase.auth.signInWithPassword({
+    email: profile.email,
+    password: currentPassword,
+  });
+  if (signInError) redirect("/profile?err=current");
+
+  // Set password baru lewat admin client (tidak butuh token recovery)
+  const admin = createAdminClient();
+  const { error: updateError } = await admin.auth.admin.updateUserById(profile.id, {
+    password: newPassword,
+  });
+  if (updateError) redirect("/profile?err=" + encodeURIComponent(updateError.message));
+
+  revalidatePath("/profile");
+  redirect("/profile?ok=password-changed");
+}
