@@ -21,11 +21,14 @@ const BOLD_OFF = cmd(ESC, 0x45, 0x00);      // ESC E 0
 const FONT_NORMAL = cmd(GS, 0x21, 0x00);    // GS ! 0  — 1x1
 const FONT_DOUBLE_H = cmd(GS, 0x21, 0x10);  // GS ! 16 — 2x tinggi, 1x lebar
 const FONT_DOUBLE = cmd(GS, 0x21, 0x11);    // GS ! 17 — 2x tinggi + 2x lebar
+const FONT_A = cmd(ESC, 0x4d, 0x00);        // ESC M 0 — Font A (12x24 dot)
+const FONT_B = cmd(ESC, 0x4d, 0x01);        // ESC M 1 — Font B (9x17 dot, lebih kecil)
 const FEED_1 = cmd(ESC, 0x64, 0x01);        // ESC d 1
 const FEED_2 = cmd(ESC, 0x64, 0x02);
 const FEED_3 = cmd(ESC, 0x64, 0x03);
 const CUT_PARTIAL = cmd(GS, 0x56, 0x01);    // GS V 1 (partial cut)
 const CUT_FULL = cmd(GS, 0x56, 0x00);       // GS V 0 (full cut)
+const LINE_SPACING_20 = cmd(ESC, 0x33, 20); // ESC 3 20 (font B)
 const LINE_SPACING_24 = cmd(ESC, 0x33, 24); // ESC 3 24 (font normal)
 const LINE_SPACING_48 = cmd(ESC, 0x33, 48); // ESC 3 48 (font 2x tinggi)
 
@@ -136,13 +139,14 @@ export type ReceiptData = {
 };
 
 // ==== Main builder ====
-export type ReceiptFontSize = "normal" | "large" | "xlarge";
+export type ReceiptFontSize = "small" | "normal" | "large" | "xlarge";
 
 /**
  * Build ESC/POS bytes for a 58mm receipt.
  *
  * fontSize:
- * - "normal" 1x1  → 32 kolom
+ * - "small"  Font B (9x17 dot) → 42 kolom, paling kecil
+ * - "normal" Font A 1x1        → 32 kolom
  * - "large"  2x tinggi (default) → 32 kolom, tetap terbaca jelas
  * - "xlarge" 2x tinggi + 2x lebar → 16 kolom, layout ditumpuk
  */
@@ -151,10 +155,20 @@ export function buildEscposReceipt(
   opts: { fontSize?: ReceiptFontSize } = {}
 ): Uint8Array {
   const fontSize = opts.fontSize ?? "large";
-  const W = fontSize === "xlarge" ? 16 : 32;
-  const FONT = fontSize === "normal" ? FONT_NORMAL : FONT_DOUBLE_H;
+  const W = fontSize === "xlarge" ? 16 : fontSize === "small" ? 42 : 32;
+  const FONT =
+    fontSize === "small"
+      ? concat(FONT_NORMAL, FONT_B)   // ukuran 1x1 + Font B (lebih kecil)
+      : fontSize === "normal"
+      ? concat(FONT_B, FONT_A)        // kembalikan ke Font A bila sebelumnya Font B
+      : FONT_DOUBLE_H;
   const STORE_FONT = fontSize === "xlarge" ? FONT_DOUBLE : FONT;
-  const LINE_SPACING = fontSize === "normal" ? LINE_SPACING_24 : LINE_SPACING_48;
+  const LINE_SPACING =
+    fontSize === "small"
+      ? LINE_SPACING_20
+      : fontSize === "normal"
+      ? LINE_SPACING_24
+      : LINE_SPACING_48;
 
   const parts: Uint8Array[] = [
     INIT,
@@ -184,11 +198,13 @@ export function buildEscposReceipt(
   parts.push(divider(W), FEED_1);
 
   if (W >= 32) {
-    // === Lebar 32 kolom: tabel 4 kolom (Item | Qty | Harga | Sub) ===
-    const NAME_W = 14;
-    const QTY_W = 5;
-    const PRICE_W = 6;
-    const SUB_W = 7;
+    // === Tabel 4 kolom: 42 kolom (Font B) atau 32 kolom (Font A) ===
+    const NAME_W = W >= 40 ? 16 : 14;
+    const QTY_W = W >= 40 ? 4 : 5;
+    const PRICE_W = W >= 40 ? 11 : 6;
+    const SUB_W = W >= 40 ? 11 : 7;
+    // Font B: kolom lebih lebar, jadi nominal tampil tanpa "Rp " agar utuh.
+    const money = (s: string) => (W >= 40 ? s.replace(/^Rp\s*/i, "") : s);
 
     parts.push(
       txt(
@@ -214,8 +230,8 @@ export function buildEscposReceipt(
         txt(
           " ".repeat(NAME_W) +
             padRight(String(it.qty), QTY_W) +
-            padRight(trunc(it.unitPrice, PRICE_W), PRICE_W) +
-            padLeft(trunc(it.subtotal, SUB_W), SUB_W)
+            padRight(trunc(money(it.unitPrice), PRICE_W), PRICE_W) +
+            padLeft(trunc(money(it.subtotal), SUB_W), SUB_W)
         ),
         FEED_1
       );

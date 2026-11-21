@@ -70,7 +70,9 @@ export function ReceiptPrinter({
     }
     try {
       const saved = localStorage.getItem(FONT_SIZE_KEY);
-      if (saved === "normal" || saved === "large" || saved === "xlarge") setFontSize(saved);
+      if (saved === "small" || saved === "normal" || saved === "large" || saved === "xlarge") {
+        setFontSize(saved);
+      }
     } catch {
       /* ignore */
     }
@@ -266,10 +268,11 @@ export function ReceiptPrinter({
   const fontSizeSection = (
     <div className="rounded-lg border border-gray-200 bg-white p-3 space-y-2">
       <p className="text-xs font-medium text-gray-700">Ukuran tulisan struk</p>
-      <div className="grid grid-cols-3 gap-1 rounded-lg bg-gray-100 p-1">
+      <div className="grid grid-cols-4 gap-1 rounded-lg bg-gray-100 p-1">
         {(
           [
-            { key: "normal", label: "Kecil" },
+            { key: "small", label: "Kecil" },
+            { key: "normal", label: "Normal" },
             { key: "large", label: "Besar" },
             { key: "xlarge", label: "Ekstra" },
           ] as { key: ReceiptFontSize; label: string }[]
@@ -278,7 +281,7 @@ export function ReceiptPrinter({
             key={opt.key}
             type="button"
             onClick={() => changeFontSize(opt.key)}
-            className={`rounded-md px-2 py-1.5 text-xs font-medium transition ${
+            className={`rounded-md px-1 py-1.5 text-[11px] font-medium transition ${
               fontSize === opt.key
                 ? "bg-white text-emerald-700 shadow-sm"
                 : "text-gray-600 hover:text-gray-900"
@@ -289,7 +292,8 @@ export function ReceiptPrinter({
         ))}
       </div>
       <p className="text-[11px] leading-snug text-gray-500">
-        Default <b>Besar</b> (2× tinggi). Kalau masih terlalu kecil, pilih <b>Ekstra</b>.
+        Default <b>Besar</b> (2× tinggi). Pilih <b>Kecil</b> (Font B) kalau masih
+        terlalu besar, atau <b>Ekstra</b> kalau kurang besar.
       </p>
     </div>
   );
