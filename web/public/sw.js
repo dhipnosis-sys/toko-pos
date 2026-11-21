@@ -1,4 +1,4 @@
-/* Service worker — Toko Nuhahade PWA
+/* Service worker — Warung Nuhahade PWA
  * Strategi:
  *  - /_next/static  : cache-first (aset ber-hash, immutable)
  *  - navigasi HTML  : network-first → cache → offline.html
@@ -154,7 +154,7 @@ async function staleWhileRevalidate(event, request) {
 
 /* ------------------------------------------------------------ push & click */
 self.addEventListener("push", (event) => {
-  let payload = { title: "Toko Nuhahade", body: "" };
+  let payload = { title: "Warung Nuhahade", body: "" };
 
   if (event.data) {
     try {
@@ -165,7 +165,7 @@ self.addEventListener("push", (event) => {
   }
 
   event.waitUntil(
-    self.registration.showNotification(payload.title || "Toko Nuhahade", {
+    self.registration.showNotification(payload.title || "Warung Nuhahade", {
       body: payload.body || "",
       icon: "/icons/icon-192.png",
       badge: "/icons/icon-192.png",

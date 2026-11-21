@@ -85,7 +85,7 @@ export function InstallPrompt() {
       <div className="flex items-center gap-3 rounded-xl border border-emerald-200 bg-white px-4 py-3 shadow-lg">
         <div className="flex-1 min-w-0">
           <p className="text-sm font-semibold text-slate-900">
-            Pasang Toko Nuhahade
+            Pasang Warung Nuhahade
           </p>
           <p className="text-xs text-slate-500">
             Tambahkan ke layar utama agar terbuka seperti aplikasi.

@@ -3,8 +3,8 @@ import type { MetadataRoute } from "next";
 export default function manifest(): MetadataRoute.Manifest {
   return {
     id: "/",
-    name: "Toko Nuhahade",
-    short_name: "Toko Nuhahade",
+    name: "Warung Nuhahade",
+    short_name: "Warung Nuhahade",
     description: "Aplikasi POS & Manajemen Inventori Warung Nuhahade",
     start_url: "/",
     scope: "/",

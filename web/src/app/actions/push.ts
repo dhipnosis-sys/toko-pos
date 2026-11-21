@@ -93,7 +93,7 @@ export async function sendTestNotification(): Promise<PushActionResult> {
 
     const sent = await notifyUser(profile.id, {
       title: "Notifikasi aktif ✓",
-      body: `Halo ${profile.name}, push notification Toko Nuhahade sudah terpasang di perangkat ini.`,
+      body: `Halo ${profile.name}, push notification Warung Nuhahade sudah terpasang di perangkat ini.`,
       url: "/settings",
     });
 

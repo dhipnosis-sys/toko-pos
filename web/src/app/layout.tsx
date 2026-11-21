@@ -17,11 +17,11 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: { default: "Warung Nuhahade", template: "%s — Warung Nuhahade" },
   description: "Sistem POS & Manajemen Inventori Warung Nuhahade",
-  applicationName: "Toko Nuhahade",
+  applicationName: "Warung Nuhahade",
   appleWebApp: {
     capable: true,
     statusBarStyle: "default",
-    title: "Toko Nuhahade",
+    title: "Warung Nuhahade",
   },
 };
 
