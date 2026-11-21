@@ -5,7 +5,7 @@ import { createClient } from "@/lib/supabase/server";
 import { Card, EmptyState, PageHeader, Badge } from "@/components/ui";
 import { Flash, Table, THead, Th, Td } from "@/components/Flash";
 import { DeleteButton } from "@/components/DeleteButton";
-import { deleteUser } from "@/app/actions/users";
+import { deleteUser, resetUserPassword } from "@/app/actions/users";
 
 const roleLabels: Record<string, string> = {
   owner: "Pemilik",
@@ -90,7 +90,20 @@ export default async function UsersPage(props: PageProps<"/users">) {
                         Edit
                       </Link>
                       {u.id !== current.id && (
-                        <DeleteButton action={deleteUser} id={u.id} confirmText="Hapus?" />
+                        <>
+                          <DeleteButton
+                            action={resetUserPassword}
+                            id={u.id}
+                            label="Reset PW"
+                            confirmText="Yakin?"
+                            className="rounded-lg bg-amber-50 border border-amber-200 px-2.5 py-1 text-xs font-medium text-amber-700 hover:bg-amber-100 disabled:opacity-50"
+                          />
+                          <DeleteButton
+                            action={deleteUser}
+                            id={u.id}
+                            confirmText="Hapus?"
+                          />
+                        </>
                       )}
                     </span>
                   </Td>

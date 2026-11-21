@@ -96,6 +96,26 @@ export async function deleteUser(id: string) {
   redirect("/users?ok=deleted");
 }
 
+// Password default untuk fitur "Reset Password" di menu Pengguna.
+// Bisa di-override lewat env DEFAULT_RESET_PASSWORD tanpa ganti kode.
+const DEFAULT_RESET_PASSWORD =
+  process.env.DEFAULT_RESET_PASSWORD?.trim() || "nuhade2026";
+
+export async function resetUserPassword(id: string): Promise<void> {
+  await requireRole("owner");
+  const current = await getCurrentUser();
+  if (id === current.id) redirect("/users?err=selfreset");
+
+  const admin = createAdminClient();
+  const { error } = await admin.auth.admin.updateUserById(id, {
+    password: DEFAULT_RESET_PASSWORD,
+  });
+  if (error) redirect("/users?err=" + encodeURIComponent(error.message));
+
+  revalidatePath("/users");
+  redirect("/users?ok=password-reset");
+}
+
 export async function updateOwnProfile(formData: FormData) {
   const profile = await getCurrentUser();
   const supabase = await createClient();

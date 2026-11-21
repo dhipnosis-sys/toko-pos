@@ -18,6 +18,8 @@ const messages: Record<string, string> = {
   required: "Semua kolom wajib diisi dengan benar",
   role: "Role tidak valid atau operasi tidak diizinkan",
   self: "Tidak dapat menghapus akun sendiri",
+  selfreset: "Tidak bisa reset password akun sendiri",
+  "password-reset": "Password berhasil direset ke default (nuhade2026)",
   inuse: "Data sudah dipakai di transaksi lain, tidak bisa dihapus",
   completed: "Produksi selesai tidak bisa dihapus",
   inactive: "Akun Anda dinonaktifkan. Hubungi pemilik toko.",
