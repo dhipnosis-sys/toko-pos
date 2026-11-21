@@ -41,6 +41,8 @@ export function ReceiptPrinter({
   const [error, setError] = useState<string | null>(null);
   const [printerName, setPrinterName] = useState<string | null>(null);
   const [available, setAvailable] = useState<boolean | null>(null);
+  const [isAndroid, setIsAndroid] = useState(false);
+  const [rawbtStatus, setRawbtStatus] = useState<"idle" | "sending">("idle");
   const deviceRef = useRef<BluetoothDevice | null>(null);
   const charRef = useRef<BluetoothRemoteGATTCharacteristic | null>(null);
 
@@ -49,6 +51,8 @@ export function ReceiptPrinter({
     const hasBT = "bluetooth" in navigator;
     setAvailable(hasBT);
     if (!hasBT) setError("Web Bluetooth tidak didukung di browser ini (butuh Chrome/Edge, HTTPS).");
+    // Android detection (untuk tombol RawBT — bridge Bluetooth Classic SPP)
+    setIsAndroid(/Android/i.test(navigator.userAgent));
   }, []);
 
   // Load saved printer name
@@ -200,11 +204,64 @@ export function ReceiptPrinter({
     window.print();
   }, []);
 
+  /** Encode bytes to base64 (chunked, aman untuk data besar). */
+  const bytesToBase64 = (bytes: Uint8Array): string => {
+    let binary = "";
+    const CHUNK = 0x2000; // 8192 — hindari stack overflow
+    for (let i = 0; i < bytes.length; i += CHUNK) {
+      binary += String.fromCharCode(...bytes.subarray(i, i + CHUNK));
+    }
+    return btoa(binary);
+  };
+
+  /**
+   * Cetak via RawBT (Android) — jembatan untuk printer Bluetooth Classic (SPP)
+   * yang tidak bisa dijangkau Web Bluetooth / dialog print Android.
+   * Format intent: rawbt:base64,<data> (dengan fallback Play Store).
+   */
+  const printRawBT = useCallback(() => {
+    try {
+      setError(null);
+      setRawbtStatus("sending");
+      const payload = buildEscposReceipt(receipt);
+      const b64 = bytesToBase64(payload);
+      const intentUrl = `intent:base64,${b64}#Intent;scheme=rawbt;package=ru.a402d.rawbtprinter;end;`;
+      // Intent harus dipicu dari gesture user — ini di dalam onClick, jadi aman.
+      window.location.href = intentUrl;
+      setTimeout(() => setRawbtStatus("idle"), 2500);
+    } catch (e) {
+      setRawbtStatus("idle");
+      const msg = safeError(e);
+      console.error("[rawbt] error:", e);
+      setError(msg);
+      setStatus("error");
+    }
+  }, [receipt]);
+
   /** Clear saved printer. */
   const clearSaved = () => {
     localStorage.removeItem(STORAGE_KEY);
     setPrinterName(null);
   };
+
+  // Tombol RawBT (Android) — jembatan untuk printer Bluetooth Classic (SPP),
+  // yang tidak bisa dijangkau Web Bluetooth maupun dialog print Android.
+  const rawbtSection = isAndroid ? (
+    <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-3 space-y-2">
+      <p className="text-xs text-emerald-800 leading-snug">
+        <b>Printer Bluetooth Classic (SPP)</b> — pakai aplikasi <b>RawBT</b> (gratis).
+        Pairing printer di aplikasi RawBT dulu, lalu tekan tombol ini. Tanpa dialog PDF.
+      </p>
+      <button
+        type="button"
+        onClick={printRawBT}
+        className="w-full flex items-center justify-center gap-2 rounded-lg bg-emerald-600 px-4 py-2.5 text-sm font-medium text-white hover:bg-emerald-700"
+      >
+        <Printer className="w-4 h-4" />
+        {rawbtStatus === "sending" ? "Membuka RawBT…" : "Cetak via RawBT (Bluetooth)"}
+      </button>
+    </div>
+  ) : null;
 
   // Render fallback + error info even when Web Bluetooth unavailable
   if (available === false) {
@@ -214,6 +271,7 @@ export function ReceiptPrinter({
           <AlertTriangle className="w-4 h-4 shrink-0" />
           <span>Web Bluetooth tidak didukung di browser ini (butuh Chrome/Edge, HTTPS).</span>
         </div>
+        {rawbtSection}
         {/* Fallback */}
         <div className="border-t border-gray-200 pt-2">
           <p className="text-xs text-gray-500 mb-2 text-center">
@@ -235,6 +293,8 @@ export function ReceiptPrinter({
   // available === null (initial) atau true → render normal
   return (
     <div className="space-y-3 no-print">
+      {rawbtSection}
+
       {/* Bluetooth Print */}
       {available && (
         <>
@@ -293,7 +353,8 @@ export function ReceiptPrinter({
       {/* Fallback */}
       <div className="border-t border-gray-200 pt-2">
         <p className="text-xs text-gray-500 mb-2 text-center">
-          Printer BLE tidak ditemukan / gagal? Gunakan cetak via browser (dialog sistem).
+          Catatan: dialog print Android tidak menampilkan printer Bluetooth. Untuk thermal
+          Bluetooth, gunakan tombol <b>RawBT</b> di atas.
         </p>
         <button
           type="button"
