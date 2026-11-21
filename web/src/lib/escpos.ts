@@ -18,13 +18,16 @@ const ALIGN_CENTER = cmd(ESC, 0x61, 0x01);  // ESC a 1
 const ALIGN_RIGHT = cmd(ESC, 0x61, 0x02);   // ESC a 2
 const BOLD_ON = cmd(ESC, 0x45, 0x01);       // ESC E 1
 const BOLD_OFF = cmd(ESC, 0x45, 0x00);      // ESC E 0
-const FONT_NORMAL = cmd(GS, 0x21, 0x00);    // GS ! 0
+const FONT_NORMAL = cmd(GS, 0x21, 0x00);    // GS ! 0  — 1x1
+const FONT_DOUBLE_H = cmd(GS, 0x21, 0x10);  // GS ! 16 — 2x tinggi, 1x lebar
+const FONT_DOUBLE = cmd(GS, 0x21, 0x11);    // GS ! 17 — 2x tinggi + 2x lebar
 const FEED_1 = cmd(ESC, 0x64, 0x01);        // ESC d 1
 const FEED_2 = cmd(ESC, 0x64, 0x02);
 const FEED_3 = cmd(ESC, 0x64, 0x03);
 const CUT_PARTIAL = cmd(GS, 0x56, 0x01);    // GS V 1 (partial cut)
 const CUT_FULL = cmd(GS, 0x56, 0x00);       // GS V 0 (full cut)
-const LINE_SPACING_24 = cmd(ESC, 0x33, 0x18); // ESC 3 24 (default 24 dots)
+const LINE_SPACING_24 = cmd(ESC, 0x33, 24); // ESC 3 24 (font normal)
+const LINE_SPACING_48 = cmd(ESC, 0x33, 48); // ESC 3 48 (font 2x tinggi)
 
 // ==== Text encoding ====
 /** Sanitize to ASCII-safe for thermal printers (CP437 subset). */
@@ -53,14 +56,26 @@ function padRight(s: string, width: number): string {
   return s.padEnd(width);
 }
 
-/** Truncate with ellipsis if too long. */
+/** Truncate if too long (ASCII-safe marker, so column width stays exact). */
 function trunc(s: string, max: number): string {
+  if (max <= 0) return "";
   if (s.length <= max) return s;
-  return s.slice(0, max - 1) + "…";
+  return s.slice(0, max - 1) + ".";
 }
 
-/** Build a row: left text + right text, width 32. */
+/**
+ * Build a row: left text + right text on one line of `width` columns.
+ * If the value is too long to sit next to the label, it goes on its own line
+ * so numbers are never cut off (important for 16-column "Ekstra" mode).
+ */
 function row(left: string, right: string, width = 32): Uint8Array {
+  if (left.length + right.length + 1 <= width) {
+    const gap = width - left.length - right.length;
+    return txt(left + " ".repeat(gap) + right);
+  }
+  if (right.length >= width) {
+    return txt(trunc(left, width) + "\n" + right);
+  }
   const L = trunc(left, width - right.length - 1);
   const gap = width - L.length - right.length;
   return txt(L + " ".repeat(Math.max(1, gap)) + right);
@@ -121,15 +136,35 @@ export type ReceiptData = {
 };
 
 // ==== Main builder ====
-export function buildEscposReceipt(data: ReceiptData): Uint8Array {
-  const W = 32;
+export type ReceiptFontSize = "normal" | "large" | "xlarge";
+
+/**
+ * Build ESC/POS bytes for a 58mm receipt.
+ *
+ * fontSize:
+ * - "normal" 1x1  → 32 kolom
+ * - "large"  2x tinggi (default) → 32 kolom, tetap terbaca jelas
+ * - "xlarge" 2x tinggi + 2x lebar → 16 kolom, layout ditumpuk
+ */
+export function buildEscposReceipt(
+  data: ReceiptData,
+  opts: { fontSize?: ReceiptFontSize } = {}
+): Uint8Array {
+  const fontSize = opts.fontSize ?? "large";
+  const W = fontSize === "xlarge" ? 16 : 32;
+  const FONT = fontSize === "normal" ? FONT_NORMAL : FONT_DOUBLE_H;
+  const STORE_FONT = fontSize === "xlarge" ? FONT_DOUBLE : FONT;
+  const LINE_SPACING = fontSize === "normal" ? LINE_SPACING_24 : LINE_SPACING_48;
+
   const parts: Uint8Array[] = [
     INIT,
-    LINE_SPACING_24,
-    FONT_NORMAL,
+    LINE_SPACING,
+    FONT,
     ALIGN_CENTER,
     BOLD_ON,
-    txt(trunc(data.storeName, W)),
+    STORE_FONT,
+    txt(trunc(sanitize(data.storeName), W)),
+    FONT,
     FEED_1,
     BOLD_OFF,
   ];
@@ -148,43 +183,60 @@ export function buildEscposReceipt(data: ReceiptData): Uint8Array {
 
   parts.push(divider(W), FEED_1);
 
-  // Items header
-  parts.push(
-    txt(
-      padRight("Item", 14) +
-        padRight("Qty", 5) +
-        padRight("Harga", 6) +
-        padLeft("Sub", 7)
-    ),
-    FEED_1,
-    divider(W),
-    FEED_1
-  );
+  if (W >= 32) {
+    // === Lebar 32 kolom: tabel 4 kolom (Item | Qty | Harga | Sub) ===
+    const NAME_W = 14;
+    const QTY_W = 5;
+    const PRICE_W = 6;
+    const SUB_W = 7;
 
-  for (const it of data.items) {
-    // Item name (wrap if > 13 chars)
-    const name = sanitize(it.name);
-    const nameLines = wrapText(name, 13);
-    for (const ln of nameLines) {
-      parts.push(txt(padRight(ln, 14) + " ".repeat(18)), FEED_1);
-    }
-    // Unit note
-    if (it.note) {
-      parts.push(txt(padRight("  " + it.note, 14) + " ".repeat(18)), FEED_1);
-    }
-    // Qty + Price + Subtotal
-    const price = trunc(it.unitPrice, 6);
-    const sub = trunc(it.subtotal, 7);
-    const qtyStr = String(it.qty);
     parts.push(
       txt(
-        " ".repeat(14) +
-          padRight(qtyStr, 5) +
-          padRight(price, 6) +
-          padLeft(sub, 7)
+        padRight("Item", NAME_W) +
+          padRight("Qty", QTY_W) +
+          padRight("Harga", PRICE_W) +
+          padLeft("Sub", SUB_W)
       ),
+      FEED_1,
+      divider(W),
       FEED_1
     );
+
+    for (const it of data.items) {
+      const nameLines = wrapText(sanitize(it.name), NAME_W - 1);
+      for (const ln of nameLines) {
+        parts.push(txt(padRight(ln, W)), FEED_1);
+      }
+      if (it.note) {
+        parts.push(txt(padRight(trunc("  " + it.note, W), W)), FEED_1);
+      }
+      parts.push(
+        txt(
+          " ".repeat(NAME_W) +
+            padRight(String(it.qty), QTY_W) +
+            padRight(trunc(it.unitPrice, PRICE_W), PRICE_W) +
+            padLeft(trunc(it.subtotal, SUB_W), SUB_W)
+        ),
+        FEED_1
+      );
+    }
+  } else {
+    // === Lebar 16 kolom (Ekstra): layout ditumpuk, angka tetap utuh ===
+    const unitPriceW = Math.floor((W - 3) / 2); // "x Rp xxx"
+    for (const it of data.items) {
+      const nameLines = wrapText(sanitize(it.name), W);
+      for (const ln of nameLines) {
+        parts.push(txt(padRight(ln, W)), FEED_1);
+      }
+      if (it.note) {
+        parts.push(txt(padRight(trunc("  " + it.note, W), W)), FEED_1);
+      }
+      parts.push(
+        row(`${it.qty} x`, trunc(it.unitPrice, Math.max(4, unitPriceW)), W),
+        FEED_1
+      );
+      parts.push(row("", it.subtotal, W), FEED_1);
+    }
   }
 
   parts.push(divider(W), FEED_1);
@@ -195,7 +247,9 @@ export function buildEscposReceipt(data: ReceiptData): Uint8Array {
   if (data.digitalTotal) parts.push(row("Digital", data.digitalTotal, W), FEED_1);
   parts.push(
     BOLD_ON,
+    STORE_FONT,
     row("Total", data.total, W),
+    FONT,
     BOLD_OFF,
     FEED_1
   );

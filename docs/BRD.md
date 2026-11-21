@@ -279,6 +279,7 @@ Prioritas yang disarankan:
 
 | Tanggal | Versi | Ringkasan Perubahan | Referensi |
 |---|---|---|---|
+| 2026-11-21 | v1.6 | **Ukuran huruf struk thermal bisa diatur**: selector **Kecil / Besar / Ekstra** di halaman cetak (tersimpan di browser). Default **Besar** = `GS ! 0x10` (2× tinggi) + line spacing 48 dot; **Ekstra** = `GS ! 0x11` (2× tinggi & lebar, layout 16 kolom ditumpuk agar angka tidak terpotong). Berlaku untuk cetak **RawBT** dan Web Bluetooth. | `web/src/lib/escpos.ts`; `web/src/components/ReceiptPrinter.tsx` |
 | 2026-09-10 | v1.1 | **Harga modal rata-rata tertimbang** saat pembelian (BR-08) + halaman **Riwayat Harga** per supplier (M-09). | `supabase/migrations/process_purchase_wac.sql`; `web/src/app/(app)/price-history/` |
 | 2026-09-10 | v1.1 | **Pelunasan piutang pelanggan** dicatat (`record_customer_payment`, halaman `/customers/[id]/pay`, tombol Bayar di daftar & detail) — FR-49/FR-50, BR-16. | `supabase/migrations/customer_debt_payment.sql` |
 | 2026-09-10 | v1.1 | **Tambah pelanggan cepat dari POS** + **pembeda nama pelanggan** (nomor telepon unik, tampilan dropdown) — FR-51/FR-52, BR-15. | `supabase/migrations/customer_debt_payment.sql`; POSClient, actions/customers.ts |

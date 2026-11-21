@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { AlertTriangle, Bluetooth, BluetoothConnected, Loader2, Printer, Trash2, CheckCircle, XCircle } from "lucide-react";
-import { buildEscposReceipt, chunkBytes, type ReceiptData } from "@/lib/escpos";
+import { buildEscposReceipt, chunkBytes, type ReceiptData, type ReceiptFontSize } from "@/lib/escpos";
 
 /** Known BLE thermal printer service UUIDs (common ones). */
 const KNOWN_SERVICE_UUIDS = [
@@ -16,6 +16,7 @@ const KNOWN_SERVICE_UUIDS = [
 ];
 
 const STORAGE_KEY = "toko-selected-bluetooth-printer";
+const FONT_SIZE_KEY = "toko-receipt-font-size";
 
 /** Device info stored in localStorage (name + id) for auto-reconnect. */
 type SavedPrinter = {
@@ -43,6 +44,7 @@ export function ReceiptPrinter({
   const [available, setAvailable] = useState<boolean | null>(null);
   const [isAndroid, setIsAndroid] = useState(false);
   const [rawbtStatus, setRawbtStatus] = useState<"idle" | "sending">("idle");
+  const [fontSize, setFontSize] = useState<ReceiptFontSize>("large");
   const deviceRef = useRef<BluetoothDevice | null>(null);
   const charRef = useRef<BluetoothRemoteGATTCharacteristic | null>(null);
 
@@ -66,6 +68,12 @@ export function ReceiptPrinter({
     } catch {
       /* ignore */
     }
+    try {
+      const saved = localStorage.getItem(FONT_SIZE_KEY);
+      if (saved === "normal" || saved === "large" || saved === "xlarge") setFontSize(saved);
+    } catch {
+      /* ignore */
+    }
   }, []);
 
   /** Sanitize error for display. */
@@ -77,6 +85,16 @@ export function ReceiptPrinter({
 
   /** Delay helper. */
   const delay = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
+  /** Pilih ukuran huruf struk (disimpan agar tidak diatur ulang tiap cetak). */
+  const changeFontSize = (value: ReceiptFontSize) => {
+    setFontSize(value);
+    try {
+      localStorage.setItem(FONT_SIZE_KEY, value);
+    } catch {
+      /* ignore */
+    }
+  };
 
   /** Find writable characteristic in a service. */
   async function findWritableChar(service: BluetoothRemoteGATTService): Promise<BluetoothRemoteGATTCharacteristic | null> {
@@ -184,7 +202,7 @@ export function ReceiptPrinter({
 
       // Build & send ESC/POS
       setStatus("sending");
-      const payload = buildEscposReceipt(receipt);
+      const payload = buildEscposReceipt(receipt, { fontSize });
       await writeChunks(char, payload);
 
       setStatus("success");
@@ -197,7 +215,7 @@ export function ReceiptPrinter({
       setError(msg);
       setStatus("error");
     }
-  }, [available, printerName, receipt]);
+  }, [available, printerName, receipt, fontSize]);
 
   /** Fallback: browser print (CSS @page 58mm). */
   const printBrowser = useCallback(() => {
@@ -223,7 +241,7 @@ export function ReceiptPrinter({
     try {
       setError(null);
       setRawbtStatus("sending");
-      const payload = buildEscposReceipt(receipt);
+      const payload = buildEscposReceipt(receipt, { fontSize });
       const b64 = bytesToBase64(payload);
       const intentUrl = `intent:base64,${b64}#Intent;scheme=rawbt;package=ru.a402d.rawbtprinter;end;`;
       // Intent harus dipicu dari gesture user — ini di dalam onClick, jadi aman.
@@ -236,13 +254,45 @@ export function ReceiptPrinter({
       setError(msg);
       setStatus("error");
     }
-  }, [receipt]);
+  }, [receipt, fontSize]);
 
   /** Clear saved printer. */
   const clearSaved = () => {
     localStorage.removeItem(STORAGE_KEY);
     setPrinterName(null);
   };
+
+  // Selector ukuran huruf struk (berlaku untuk RawBT & Web Bluetooth).
+  const fontSizeSection = (
+    <div className="rounded-lg border border-gray-200 bg-white p-3 space-y-2">
+      <p className="text-xs font-medium text-gray-700">Ukuran tulisan struk</p>
+      <div className="grid grid-cols-3 gap-1 rounded-lg bg-gray-100 p-1">
+        {(
+          [
+            { key: "normal", label: "Kecil" },
+            { key: "large", label: "Besar" },
+            { key: "xlarge", label: "Ekstra" },
+          ] as { key: ReceiptFontSize; label: string }[]
+        ).map((opt) => (
+          <button
+            key={opt.key}
+            type="button"
+            onClick={() => changeFontSize(opt.key)}
+            className={`rounded-md px-2 py-1.5 text-xs font-medium transition ${
+              fontSize === opt.key
+                ? "bg-white text-emerald-700 shadow-sm"
+                : "text-gray-600 hover:text-gray-900"
+            }`}
+          >
+            {opt.label}
+          </button>
+        ))}
+      </div>
+      <p className="text-[11px] leading-snug text-gray-500">
+        Default <b>Besar</b> (2× tinggi). Kalau masih terlalu kecil, pilih <b>Ekstra</b>.
+      </p>
+    </div>
+  );
 
   // Tombol RawBT (Android) — jembatan untuk printer Bluetooth Classic (SPP),
   // yang tidak bisa dijangkau Web Bluetooth maupun dialog print Android.
@@ -271,6 +321,7 @@ export function ReceiptPrinter({
           <AlertTriangle className="w-4 h-4 shrink-0" />
           <span>Web Bluetooth tidak didukung di browser ini (butuh Chrome/Edge, HTTPS).</span>
         </div>
+        {fontSizeSection}
         {rawbtSection}
         {/* Fallback */}
         <div className="border-t border-gray-200 pt-2">
@@ -293,6 +344,7 @@ export function ReceiptPrinter({
   // available === null (initial) atau true → render normal
   return (
     <div className="space-y-3 no-print">
+      {fontSizeSection}
       {rawbtSection}
 
       {/* Bluetooth Print */}
